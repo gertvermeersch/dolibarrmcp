@@ -1,0 +1,33 @@
+import { dolibarr } from "./client.js";
+import type { DolibarrProposal, DolibarrInvoiceLine } from "../types/dolibarr.js";
+
+export async function createProposal(data: {
+  socid: number;
+  date: number;
+  lines?: Partial<DolibarrInvoiceLine>[];
+}): Promise<number> {
+  return dolibarr.post<number>("/proposals", data);
+}
+
+export async function addProposalLine(
+  proposalId: number,
+  line: Partial<DolibarrInvoiceLine>,
+): Promise<number> {
+  return dolibarr.post<number>(`/proposals/${proposalId}/lines`, line);
+}
+
+export async function validateProposal(proposalId: number): Promise<void> {
+  await dolibarr.post(`/proposals/${proposalId}/validate`, {});
+}
+
+export async function closeProposal(
+  proposalId: number,
+  status: "accepted" | "refused",
+  note?: string,
+): Promise<void> {
+  await dolibarr.post(`/proposals/${proposalId}/close`, { status, note });
+}
+
+export async function getProposal(id: number): Promise<DolibarrProposal> {
+  return dolibarr.get<DolibarrProposal>(`/proposals/${id}?includeLines=1`);
+}
