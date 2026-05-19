@@ -141,6 +141,7 @@ pattern for new tools that involve thirdparty resolution and line items.
 
 ### Fully implemented
 - `search_products` (read)
+- `search_services` (read)
 - `create_thirdparty` (write)
 - `update_thirdparty` (write)
 - `create_invoice` (write)

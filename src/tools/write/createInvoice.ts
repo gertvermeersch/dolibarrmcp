@@ -15,7 +15,7 @@ const lineSchema = z.object({
 export function registerCreateInvoice(server: McpServer): void {
   server.tool(
     "create_invoice",
-    "Create a client invoice with lines. Resolves the client by name and matches line items against the product catalog where possible.",
+    "Create a client invoice with lines. Resolves the client by name and matches line items against the product/service catalog where possible.",
     {
       client: z.string().describe("Client name or Dolibarr ID"),
       date: z.string().describe("Invoice date (YYYY-MM-DD)"),

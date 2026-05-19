@@ -5,6 +5,8 @@ import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { config } from "./config.js";
 import { registerTools } from "./server.js";
 
+// CORS preflight requests may ask for custom MCP headers. Fall back to the known
+// header list when a client does not explicitly send Access-Control-Request-Headers.
 const defaultAllowedCorsHeaders = [
   "Accept",
   "Content-Type",
@@ -15,6 +17,8 @@ const defaultAllowedCorsHeaders = [
   "x-custom-auth-headers",
 ].join(", ");
 
+// These headers keep browser-based MCP clients happy while exposing the MCP
+// session metadata they need to continue a Streamable HTTP session.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
@@ -24,6 +28,8 @@ const corsHeaders = {
   ].join(", "),
 };
 
+// Active Streamable HTTP transports, keyed by MCP session id. A transport owns
+// the request/response lifecycle for its session until the client disconnects.
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
 function createMcpServer(): McpServer {
@@ -37,6 +43,8 @@ function createMcpServer(): McpServer {
 }
 
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
+  // Node's IncomingMessage is an async iterable, so collect the body chunks
+  // before parsing the JSON-RPC request payload.
   const chunks: Buffer[] = [];
 
   for await (const chunk of req) {
@@ -53,6 +61,7 @@ function writeJsonRpcError(
   code: number,
   message: string,
 ): void {
+  // MCP uses JSON-RPC errors even when the surrounding HTTP status is non-200.
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify({
     jsonrpc: "2.0",
@@ -62,6 +71,7 @@ function writeJsonRpcError(
 }
 
 const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+  // Apply CORS headers to every response, including errors and preflight replies.
   for (const [key, value] of Object.entries(corsHeaders)) {
     res.setHeader(key, value);
   }
@@ -76,7 +86,7 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  // Validate API key
+  // Gate all MCP traffic behind a simple shared API key before doing session work.
   const apiKey = req.headers["x-api-key"];
   if (apiKey !== config.mcpApiKey) {
     res.writeHead(401, { "Content-Type": "application/json" });
@@ -94,6 +104,8 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
       body = await readJsonBody(req);
     }
 
+    // A new transport can only be created from an MCP initialize request. All
+    // later requests must carry the mcp-session-id returned by that transport.
     if (!transport) {
       if (req.method !== "POST" || !isInitializeRequest(body)) {
         writeJsonRpcError(res, 400, -32000, "Bad Request: Server not initialized");
@@ -108,6 +120,7 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
       });
       transport = newTransport;
 
+      // Drop closed sessions so reconnects do not leak transports over time.
       newTransport.onclose = () => {
         if (newTransport.sessionId) {
           transports.delete(newTransport.sessionId);

@@ -15,7 +15,7 @@ const lineSchema = z.object({
 export function registerCreateProposal(server: McpServer): void {
   server.tool(
     "create_proposal",
-    "Create a proposal (devis/quote) for a client with line items.",
+    "Create a proposal (devis/quote) for a client with line items, resolving catalog products/services where possible.",
     {
       client: z.string().describe("Client name or Dolibarr ID"),
       date: z.string().describe("Proposal date (YYYY-MM-DD)"),

@@ -1,4 +1,4 @@
-import { searchProducts } from "../dolibarr/products.js";
+import { searchCatalogItems } from "../dolibarr/products.js";
 import type { LineItemInput, LineResolution } from "../types/tools.js";
 import type { DolibarrInvoiceLine } from "../types/dolibarr.js";
 
@@ -20,7 +20,7 @@ export async function resolveLine(
   input: LineItemInput,
   index: number,
 ): Promise<ResolveLineResult> {
-  const products = await searchProducts(input.description);
+  const products = await searchCatalogItems(input.description);
 
   if (products.length === 1) {
     const p = products[0];
@@ -45,13 +45,13 @@ export async function resolveLine(
     };
   }
 
-  // No catalog match — free text, price and VAT required
+  // No catalog match: free text, price and VAT required.
   if (!input.unit_price || input.vat_rate === undefined) {
     return {
       ok: false,
       error: {
         index,
-        error: `Line ${index}: '${input.description}' did not match a catalog product. unit_price and vat_rate are required for free-text lines.`,
+        error: `Line ${index}: '${input.description}' did not match a catalog product/service. unit_price and vat_rate are required for free-text lines.`,
       },
     };
   }

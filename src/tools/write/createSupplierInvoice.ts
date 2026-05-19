@@ -15,7 +15,7 @@ const lineSchema = z.object({
 export function registerCreateSupplierInvoice(server: McpServer): void {
   server.tool(
     "create_supplier_invoice",
-    "Create a supplier invoice with lines. Resolves the supplier by name using resolve-or-fail — will not auto-create unknown suppliers.",
+    "Create a supplier invoice with lines. Resolves the supplier by name and catalog products/services where possible.",
     {
       supplier: z.string().describe("Supplier name or Dolibarr ID"),
       date: z.string().describe("Invoice date (YYYY-MM-DD)"),
