@@ -16,16 +16,26 @@ export async function addProposalLine(
   return dolibarr.post<number>(`/proposals/${proposalId}/line`, line);
 }
 
-export async function validateProposal(proposalId: number): Promise<void> {
-  await dolibarr.post(`/proposals/${proposalId}/validate`, { notrigger: 0 });
+export async function validateProposal(
+  proposalId: number,
+  options: { notrigger?: number } = {},
+): Promise<void> {
+  await dolibarr.post(`/proposals/${proposalId}/validate`, { notrigger: options.notrigger ?? 0 });
 }
 
 export async function closeProposal(
   proposalId: number,
   status: "accepted" | "refused",
-  note?: string,
+  options: {
+    note_private?: string;
+    note_public?: string;
+    notrigger?: number;
+  } = {},
 ): Promise<void> {
-  await dolibarr.post(`/proposals/${proposalId}/close`, { status, note });
+  await dolibarr.post(`/proposals/${proposalId}/close`, {
+    status: status === "accepted" ? 2 : 3,
+    ...options,
+  });
 }
 
 export async function getProposal(id: number): Promise<DolibarrProposal> {
