@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchServices } from "../../dolibarr/products.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 export function registerSearchServices(server: McpServer): void {
   server.tool(
@@ -11,25 +12,16 @@ export function registerSearchServices(server: McpServer): void {
     async ({ query }) => {
       try {
         const services = await searchServices(query);
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify(
-              services.map((s) => ({
-                id: s.id,
-                ref: s.ref,
-                label: s.label,
-                price: s.price,
-                vat_rate: s.tva_tx,
-                type: "service",
-              })),
-              null,
-              2,
-            ),
-          }],
-        };
+        return prettyJsonContent(services.map((s) => ({
+          id: s.id,
+          ref: s.ref,
+          label: s.label,
+          price: s.price,
+          vat_rate: s.tva_tx,
+          type: "service",
+        })));
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify(toApiError(err)) }] };
+        return jsonContent(toApiError(err));
       }
     },
   );

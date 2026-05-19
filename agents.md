@@ -29,6 +29,7 @@ src/
 │   └── tools.ts      Shared types: McpError, error codes, LineItemInput, etc.
 ├── dolibarr/
 │   ├── client.ts     Fetch wrapper — sets DOLAPIKEY header, normalises errors
+│   ├── documents/    Domain services for shared document workflows
 │   ├── thirdparties.ts
 │   ├── invoices.ts
 │   ├── supplierInvoices.ts
@@ -38,19 +39,27 @@ src/
 │   ├── thirdparty.ts Fuzzy name → ID resolution with structured errors
 │   └── product.ts    Catalog match → line item, with free-text fallback
 └── tools/
-    ├── read/         One file per read tool
-    └── write/        One file per write tool
+    ├── catalog/      Product and service catalog tools
+    ├── invoices/     Client/supplier invoice and receivables tools
+    ├── proposals/    Proposal/quote tools
+    ├── search/       Cross-domain search tools
+    ├── shared/       Shared schemas and response helpers for tool handlers
+    └── thirdparties/ Client/supplier identity tools
 ```
 
 ---
 
 ## Key architectural patterns
 
-### Three-layer separation
+### Layer separation
 
-- **`tools/`** — MCP layer. Defines the tool schema (Zod), calls resolvers and dolibarr/ modules, formats the response. No raw fetch calls here.
+- **`tools/`** — MCP layer. Defines the tool schema (Zod), calls domain services or Dolibarr modules, formats the response. No raw fetch calls here.
+- **`dolibarr/documents/`** — Domain service layer for workflows that span resources, such as resolving thirdparties and lines before creating invoices or proposals.
 - **`dolibarr/`** — API layer. Raw Dolibarr REST calls, one file per resource. No business logic.
 - **`resolvers/`** — Shared logic. Fuzzy matching and resolution patterns used by multiple tools.
+
+Keep MCP handlers thin. If a tool starts orchestrating several business steps, move that flow
+into a domain service and let the tool file focus on schema and response shape.
 
 ### Resolve-or-fail (thirdparty)
 
@@ -126,14 +135,14 @@ On Docker Desktop (Windows/Mac), it resolves automatically.
 
 ## Adding a new tool
 
-1. Create `src/tools/read/<toolName>.ts` or `src/tools/write/<toolName>.ts`
+1. Create the tool under the owning domain folder, for example `src/tools/invoices/<toolName>.ts`
 2. Export a `register<ToolName>(server: McpServer): void` function
 3. Import and call it in `src/server.ts`
 4. Add any new Dolibarr API calls to the appropriate file in `src/dolibarr/`
 5. Add new types to `src/types/dolibarr.ts` or `src/types/tools.ts` as needed
 
-Follow the existing write tools (`createInvoice.ts`, `createProposal.ts`) as the reference
-pattern for new tools that involve thirdparty resolution and line items.
+Follow `src/dolibarr/documents/documentCreationService.ts` for new tools that create
+invoice-like or proposal-like documents with thirdparty resolution and line items.
 
 ---
 

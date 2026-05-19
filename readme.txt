@@ -86,6 +86,29 @@ Some read tools are still stubs or planned work; see TODO.md for the current imp
 checklist.
 
 
+Project Structure
+-----------------
+
+The MCP tool files are intentionally thin: they define the Zod input schema, call a domain
+service or Dolibarr API module, and format the MCP response.
+
+Tools are grouped by business domain under `src/tools/`:
+
+   catalog
+   invoices
+   proposals
+   search
+   thirdparties
+
+Shared document creation logic lives in:
+
+   src/dolibarr/documents/documentCreationService.ts
+
+That service handles the common workflow for invoices, supplier invoices, and proposals:
+resolve the thirdparty, resolve catalog/free-text lines, create the document, add lines,
+and optionally validate it.
+
+
 Errors
 ------
 

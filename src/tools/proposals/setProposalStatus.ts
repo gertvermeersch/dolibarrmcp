@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { validateProposal, closeProposal } from "../../dolibarr/proposals.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { jsonContent } from "../shared/responses.js";
 
 export function registerSetProposalStatus(server: McpServer): void {
   server.tool(
@@ -21,18 +22,13 @@ export function registerSetProposalStatus(server: McpServer): void {
 
         await closeProposal(proposal_id, status, note);
 
-        return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({
-              success: true,
-              proposal_id,
-              status,
-            }),
-          }],
-        };
+        return jsonContent({
+          success: true,
+          proposal_id,
+          status,
+        });
       } catch (err) {
-        return { content: [{ type: "text", text: JSON.stringify(toApiError(err)) }] };
+        return jsonContent(toApiError(err));
       }
     },
   );
