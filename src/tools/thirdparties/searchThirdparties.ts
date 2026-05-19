@@ -10,14 +10,16 @@ import { toApiError } from "../../dolibarr/client.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 export function registerSearchThirdparties(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "search_thirdparties",
-    "Search Dolibarr third parties only, with an optional filter for clients or suppliers.",
     {
-      query: z.string().describe("Third party name to search for"),
-      kind: z.enum(["all", "clients", "suppliers"])
-        .default("all")
-        .describe("Limit results to all third parties, clients, or suppliers"),
+      description: "Search Dolibarr third parties only, with an optional filter for clients or suppliers.",
+      inputSchema: {
+        query: z.string().describe("Third party name to search for"),
+        kind: z.enum(["all", "clients", "suppliers"])
+          .default("all")
+          .describe("Limit results to all third parties, clients, or suppliers"),
+      },
     },
     async ({ query, kind }) => {
       try {

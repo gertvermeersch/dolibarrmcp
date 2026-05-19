@@ -20,38 +20,53 @@ export async function resolveLine(
   input: LineItemInput,
   index: number,
 ): Promise<ResolveLineResult> {
-  const products = await searchCatalogItems(input.description);
+  if (input.product_ref) {
+    const products = await searchCatalogItems(input.product_ref);
+    const product =
+      products.find((p) => p.ref === input.product_ref) ??
+      (products.length === 1 ? products[0] : undefined);
 
-  if (products.length === 1) {
-    const p = products[0];
+    if (!product) {
+      return {
+        ok: false,
+        error: {
+          index,
+          error: `Line ${index}: product/service reference '${input.product_ref}' did not match exactly one catalog item.`,
+        },
+      };
+    }
+
+    const line: Partial<DolibarrInvoiceLine> = {
+      fk_product: product.id,
+      product_ref: product.ref,
+      qty: input.qty,
+    };
+
+    if (input.description) line.desc = input.description;
+    if (input.unit_price !== undefined) line.subprice = input.unit_price;
+    if (input.vat_rate !== undefined) line.tva_tx = input.vat_rate;
+
     return {
       ok: true,
       resolved: {
-        line: {
-          fk_product: p.id,
-          product_ref: p.ref,
-          desc: p.label,
-          qty: input.qty,
-          subprice: input.unit_price ?? p.price,
-          tva_tx: input.vat_rate ?? p.tva_tx,
-        },
+        line,
         resolution: {
           index,
           resolved: true,
-          product_ref: p.ref,
-          label: p.label,
+          product_ref: product.ref,
+          label: product.label,
         },
       },
     };
   }
 
-  // No catalog match: free text, price and VAT required.
-  if (!input.unit_price || input.vat_rate === undefined) {
+  // Free-text lines have no catalog product, so Dolibarr needs price and VAT explicitly.
+  if (!input.description || input.unit_price === undefined || input.vat_rate === undefined) {
     return {
       ok: false,
       error: {
         index,
-        error: `Line ${index}: '${input.description}' did not match a catalog product/service. unit_price and vat_rate are required for free-text lines.`,
+        error: `Line ${index}: description, unit_price, and vat_rate are required for free-text lines.`,
       },
     };
   }

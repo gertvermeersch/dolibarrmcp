@@ -45,6 +45,7 @@ export class DocumentCreationService {
     const resolvedThirdparty = await resolveThirdparty(input.thirdparty);
     if (!resolvedThirdparty.ok) return resolvedThirdparty.error;
 
+    // Resolve catalog refs and validate free-text lines before creating the document.
     const lineResults = await Promise.all(
       input.lines.map((line, index) => resolveLine(line, index + 1)),
     );

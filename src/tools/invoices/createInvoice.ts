@@ -13,14 +13,16 @@ const createInvoiceService = new DocumentCreationService({
 });
 
 export function registerCreateInvoice(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "create_invoice",
-    "Create a client invoice with lines. Resolves the client by name and matches line items against the product/service catalog where possible.",
     {
-      client: z.string().describe("Client name or Dolibarr ID"),
-      date: z.string().describe("Invoice date (YYYY-MM-DD)"),
-      lines: z.array(lineSchema).min(1),
-      validate: z.boolean().default(false).describe("Validate (confirm) the invoice immediately after creation"),
+      description: "Create a client invoice with lines. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
+      inputSchema: {
+        client: z.string().describe("Client name or Dolibarr ID"),
+        date: z.string().describe("Invoice date (YYYY-MM-DD)"),
+        lines: z.array(lineSchema).min(1),
+        validate: z.boolean().default(false).describe("Validate (confirm) the invoice immediately after creation"),
+      },
     },
     async ({ client, date, lines, validate }) => {
       try {

@@ -32,8 +32,9 @@ export interface LineResolution {
 
 // Input type for a line item passed to create tools
 export interface LineItemInput {
-  description: string;
+  product_ref?: string;
+  description?: string;
   qty: number;
-  unit_price?: number; // required if product not resolved from catalog
-  vat_rate?: number;   // required if product not resolved from catalog
+  unit_price?: number; // required for free-text lines, optional override for catalog lines
+  vat_rate?: number;   // required for free-text lines, optional override for catalog lines
 }

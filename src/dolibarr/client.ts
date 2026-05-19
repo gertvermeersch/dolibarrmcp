@@ -56,6 +56,10 @@ export const dolibarr = {
   put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
 };
 
+export function isDolibarrNotFoundError(err: unknown): boolean {
+  return err instanceof DolibarrApiError && err.status === 404;
+}
+
 function getDolibarrErrorMessage(body: unknown): string | undefined {
   if (!body || typeof body !== "object") return undefined;
   const error = "error" in body ? body.error : undefined;

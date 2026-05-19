@@ -13,14 +13,16 @@ const createSupplierInvoiceService = new DocumentCreationService({
 });
 
 export function registerCreateSupplierInvoice(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "create_supplier_invoice",
-    "Create a supplier invoice with lines. Resolves the supplier by name and catalog products/services where possible.",
     {
-      supplier: z.string().describe("Supplier name or Dolibarr ID"),
-      date: z.string().describe("Invoice date (YYYY-MM-DD)"),
-      lines: z.array(lineSchema).min(1),
-      validate: z.boolean().default(false).describe("Validate the invoice immediately after creation"),
+      description: "Create a supplier invoice with lines. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
+      inputSchema: {
+        supplier: z.string().describe("Supplier name or Dolibarr ID"),
+        date: z.string().describe("Invoice date (YYYY-MM-DD)"),
+        lines: z.array(lineSchema).min(1),
+        validate: z.boolean().default(false).describe("Validate the invoice immediately after creation"),
+      },
     },
     async ({ supplier, date, lines, validate }) => {
       try {

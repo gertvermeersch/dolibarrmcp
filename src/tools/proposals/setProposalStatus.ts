@@ -5,13 +5,15 @@ import { toApiError } from "../../dolibarr/client.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerSetProposalStatus(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "set_proposal_status",
-    "Mark a proposal as accepted or refused. Handles Dolibarr's validate→close flow internally.",
     {
-      proposal_id: z.number().int().describe("Dolibarr proposal ID"),
-      status: z.enum(["accepted", "refused"]),
-      note: z.string().optional().describe("Optional note to attach to the status change"),
+      description: "Mark a proposal as accepted or refused. Handles Dolibarr's validate→close flow internally.",
+      inputSchema: {
+        proposal_id: z.number().int().describe("Dolibarr proposal ID"),
+        status: z.enum(["accepted", "refused"]),
+        note: z.string().optional().describe("Optional note to attach to the status change"),
+      },
     },
     async ({ proposal_id, status, note }) => {
       try {

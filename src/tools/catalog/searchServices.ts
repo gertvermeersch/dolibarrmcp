@@ -5,10 +5,12 @@ import { toApiError } from "../../dolibarr/client.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 export function registerSearchServices(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "search_services",
-    "Search the Dolibarr service catalog by reference or label.",
-    { query: z.string().describe("Service ref or label to search for") },
+    {
+      description: "Search the Dolibarr service catalog by reference or label.",
+      inputSchema: { query: z.string().describe("Service ref or label to search for") },
+    },
     async ({ query }) => {
       try {
         const services = await searchServices(query);

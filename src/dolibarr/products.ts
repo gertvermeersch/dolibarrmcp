@@ -1,4 +1,4 @@
-import { dolibarr } from "./client.js";
+import { dolibarr, isDolibarrNotFoundError } from "./client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrProduct } from "../types/dolibarr.js";
 
@@ -17,7 +17,12 @@ async function searchCatalog(query: string, mode: CatalogSearchMode): Promise<Do
     limit: "10",
     mode: catalogModeParam[mode],
   });
-  return dolibarr.get<DolibarrProduct[]>(`/products?${params}`);
+  try {
+    return await dolibarr.get<DolibarrProduct[]>(`/products?${params}`);
+  } catch (err) {
+    if (isDolibarrNotFoundError(err)) return [];
+    throw err;
+  }
 }
 
 export async function searchCatalogItems(query: string): Promise<DolibarrProduct[]> {

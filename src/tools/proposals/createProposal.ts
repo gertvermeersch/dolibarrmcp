@@ -13,14 +13,16 @@ const createProposalService = new DocumentCreationService({
 });
 
 export function registerCreateProposal(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "create_proposal",
-    "Create a proposal (devis/quote) for a client with line items, resolving catalog products/services where possible.",
     {
-      client: z.string().describe("Client name or Dolibarr ID"),
-      date: z.string().describe("Proposal date (YYYY-MM-DD)"),
-      lines: z.array(lineSchema).min(1),
-      validate: z.boolean().default(false).describe("Validate the proposal immediately (makes it sendable)"),
+      description: "Create a proposal (devis/quote) for a client with line items. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
+      inputSchema: {
+        client: z.string().describe("Client name or Dolibarr ID"),
+        date: z.string().describe("Proposal date (YYYY-MM-DD)"),
+        lines: z.array(lineSchema).min(1),
+        validate: z.boolean().default(false).describe("Validate the proposal immediately (makes it sendable)"),
+      },
     },
     async ({ client, date, lines, validate }) => {
       try {

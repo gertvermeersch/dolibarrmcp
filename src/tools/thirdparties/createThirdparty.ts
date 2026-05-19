@@ -5,19 +5,21 @@ import { toApiError } from "../../dolibarr/client.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerCreateThirdparty(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "create_thirdparty",
-    "Create a new thirdparty (client and/or supplier) in Dolibarr.",
     {
-      name: z.string().describe("Company or person name"),
-      is_client: z.boolean().default(false).describe("Mark as client"),
-      is_supplier: z.boolean().default(false).describe("Mark as supplier"),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      zip: z.string().optional(),
-      town: z.string().optional(),
-      vat_number: z.string().optional().describe("VAT / BTW number"),
+      description: "Create a new thirdparty (client and/or supplier) in Dolibarr.",
+      inputSchema: {
+        name: z.string().describe("Company or person name"),
+        is_client: z.boolean().default(false).describe("Mark as client"),
+        is_supplier: z.boolean().default(false).describe("Mark as supplier"),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        zip: z.string().optional(),
+        town: z.string().optional(),
+        vat_number: z.string().optional().describe("VAT / BTW number"),
+      },
     },
     async ({ name, is_client, is_supplier, email, phone, address, zip, town, vat_number }) => {
       try {

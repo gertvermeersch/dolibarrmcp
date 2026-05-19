@@ -6,18 +6,20 @@ import { toApiError } from "../../dolibarr/client.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerUpdateThirdparty(server: McpServer): void {
-  server.tool(
+  server.registerTool(
     "update_thirdparty",
-    "Update an existing thirdparty (client or supplier) in Dolibarr.",
     {
-      thirdparty: z.string().describe("Thirdparty name or Dolibarr ID to update"),
-      name: z.string().optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      address: z.string().optional(),
-      zip: z.string().optional(),
-      town: z.string().optional(),
-      vat_number: z.string().optional(),
+      description: "Update an existing thirdparty (client or supplier) in Dolibarr.",
+      inputSchema: {
+        thirdparty: z.string().describe("Thirdparty name or Dolibarr ID to update"),
+        name: z.string().optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        zip: z.string().optional(),
+        town: z.string().optional(),
+        vat_number: z.string().optional(),
+      },
     },
     async ({ thirdparty, name, email, phone, address, zip, town, vat_number }) => {
       try {

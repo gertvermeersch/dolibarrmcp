@@ -1,4 +1,4 @@
-import { dolibarr } from "./client.js";
+import { dolibarr, isDolibarrNotFoundError } from "./client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrThirdparty } from "../types/dolibarr.js";
 
@@ -44,12 +44,17 @@ export async function searchThirdparties(
   const search = dolibarrLikeLiteral(query);
 
   const params = dolibarrQueryString({
-    sqlfilters: `(t.nom:like:${search})`,
+    sqlfilters: `(t.nom:like:${search}) OR (t.code_client:like:${search}) OR (t.code_fournisseur:like:${search})`,
     limit: "10",
     mode: thirdpartyModeParam[kind],
   });
 
-  return dolibarr.get<DolibarrThirdparty[]>(`/thirdparties?${params}`);
+  try {
+    return await dolibarr.get<DolibarrThirdparty[]>(`/thirdparties?${params}`);
+  } catch (err) {
+    if (isDolibarrNotFoundError(err)) return [];
+    throw err;
+  }
 }
 
 export async function getThirdparty(id: number): Promise<DolibarrThirdparty> {
