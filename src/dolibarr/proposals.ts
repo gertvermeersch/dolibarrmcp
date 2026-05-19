@@ -13,11 +13,11 @@ export async function addProposalLine(
   proposalId: number,
   line: Partial<DolibarrInvoiceLine>,
 ): Promise<number> {
-  return dolibarr.post<number>(`/proposals/${proposalId}/lines`, line);
+  return dolibarr.post<number>(`/proposals/${proposalId}/line`, line);
 }
 
 export async function validateProposal(proposalId: number): Promise<void> {
-  await dolibarr.post(`/proposals/${proposalId}/validate`, {});
+  await dolibarr.post(`/proposals/${proposalId}/validate`, { notrigger: 0 });
 }
 
 export async function closeProposal(
@@ -30,4 +30,8 @@ export async function closeProposal(
 
 export async function getProposal(id: number): Promise<DolibarrProposal> {
   return dolibarr.get<DolibarrProposal>(`/proposals/${id}?includeLines=1`);
+}
+
+export async function deleteProposal(id: number): Promise<void> {
+  await dolibarr.delete<void>(`/proposals/${id}`);
 }

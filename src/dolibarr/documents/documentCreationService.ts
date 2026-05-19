@@ -72,7 +72,7 @@ export class DocumentCreationService {
     const id = await this.api.create({ socid: resolvedThirdparty.id, date });
 
     for (const resolvedLine of resolvedLines) {
-      await this.api.addLine(id, resolvedLine.line);
+       await this.api.addLine(id, resolvedLine.line);
     }
 
     if (input.validate) await this.api.validate(id);

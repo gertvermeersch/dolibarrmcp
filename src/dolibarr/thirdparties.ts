@@ -73,3 +73,7 @@ export async function updateThirdparty(
 ): Promise<DolibarrThirdparty> {
   return dolibarr.put<DolibarrThirdparty>(`/thirdparties/${id}`, data);
 }
+
+export async function deleteThirdparty(id: number): Promise<void> {
+  await dolibarr.delete<void>(`/thirdparties/${id}`);
+}

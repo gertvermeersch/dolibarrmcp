@@ -34,11 +34,12 @@ async function request<T>(
       "Content-Type": "application/json",
       "Accept": "application/json",
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  const text = await res.text().catch(() => res.statusText);
+
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
     throw new DolibarrApiError(
       res.status,
       `Dolibarr API error ${res.status}: ${text}`,
@@ -47,13 +48,17 @@ async function request<T>(
     );
   }
 
-  return res.json() as Promise<T>;
+  if (!text) return undefined as T;
+
+  const parsed = parseJsonMaybe(text);
+  return (parsed === undefined ? text : parsed) as T;
 }
 
 export const dolibarr = {
   get: <T>(path: string) => request<T>("GET", path),
   post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
   put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
+  delete: <T>(path: string) => request<T>("DELETE", path),
 };
 
 export function isDolibarrNotFoundError(err: unknown): boolean {

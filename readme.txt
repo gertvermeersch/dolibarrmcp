@@ -34,6 +34,28 @@ Setup
    docker compose up
 
 
+Integration Tests
+-----------------
+
+The integration tests run against a real Dolibarr REST API and create/delete real records.
+Use a development Dolibarr instance, not production data.
+
+Required environment:
+
+   DOLIBARR_URL       Full Dolibarr REST API base URL.
+   DOLIBARR_API_KEY   API token with thirdparty, proposal, and product/service permissions.
+
+MCP_API_KEY is not used by these tests; if it is missing, the test runner sets a local dummy
+value so the shared config module can load.
+
+Run:
+
+   npm run test:integration
+
+The proposal test looks up the first available service through /products?mode=2&limit=1,
+then creates a validated proposal with one catalog service line and one free-text line.
+
+
 Dolibarr Requirements
 ---------------------
 
