@@ -1,4 +1,4 @@
-import { searchThirdparties } from "../dolibarr/thirdparties.js";
+import { getThirdpartyType, searchThirdparties } from "../dolibarr/thirdparties.js";
 import type { McpError, ThirdpartyCandidate } from "../types/tools.js";
 
 export type ThirdpartyResolveResult =
@@ -26,16 +26,15 @@ export async function resolveThirdparty(
   }
 
   // Multiple matches — return candidates for the user to confirm
-  const candidates: ThirdpartyCandidate[] = results.map((t) => ({
-    id: t.id,
-    name: t.name,
-    type:
-      t.client === 1 && t.supplier === 1
-        ? "both"
-        : t.supplier === 1
-          ? "supplier"
-          : "client",
-  }));
+  const candidates: ThirdpartyCandidate[] = results.map((t) => {
+    const type = getThirdpartyType(t);
+
+    return {
+      id: t.id,
+      name: t.name,
+      type: type === "other" ? "client" : type,
+    };
+  });
 
   return {
     ok: false,

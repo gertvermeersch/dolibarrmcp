@@ -12,6 +12,7 @@ import { registerSetProposalStatus } from "./tools/proposals/setProposalStatus.j
 import { registerSearchAcross } from "./tools/search/searchAcross.js";
 import { registerCreateThirdparty } from "./tools/thirdparties/createThirdparty.js";
 import { registerGetClientOverview } from "./tools/thirdparties/getClientOverview.js";
+import { registerSearchThirdparties } from "./tools/thirdparties/searchThirdparties.js";
 import { registerUpdateThirdparty } from "./tools/thirdparties/updateThirdparty.js";
 
 // Register every MCP tool on a server instance. index.ts creates one MCP server
@@ -31,6 +32,7 @@ export function registerTools(server: McpServer): void {
 
   registerSearchAcross(server);
 
+  registerSearchThirdparties(server);
   registerCreateThirdparty(server);
   registerGetClientOverview(server);
   registerUpdateThirdparty(server);

@@ -6,6 +6,7 @@ export interface DolibarrThirdparty {
   name: string;
   client: number;   // 1 = client
   supplier: number; // 1 = supplier
+  fournisseur?: number; // Dolibarr API/SQL supplier flag alias
   email?: string;
   phone?: string;
   address?: string;

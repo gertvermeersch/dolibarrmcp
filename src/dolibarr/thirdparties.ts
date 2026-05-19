@@ -2,10 +2,51 @@ import { dolibarr } from "./client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrThirdparty } from "../types/dolibarr.js";
 
-export async function searchThirdparties(query: string): Promise<DolibarrThirdparty[]> {
+export type ThirdpartySearchKind = "all" | "clients" | "suppliers";
+
+const thirdpartyModeParam: Record<ThirdpartySearchKind, string> = {
+  all: "0",
+  clients: "1",
+  suppliers: "4",
+};
+
+export function getThirdpartySupplierFlag(thirdparty: DolibarrThirdparty): number {
+  return Number(thirdparty.supplier ?? thirdparty.fournisseur ?? 0);
+}
+
+export function getThirdpartyClientFlag(thirdparty: DolibarrThirdparty): number {
+  return Number(thirdparty.client ?? 0);
+}
+
+export function getThirdpartyType(thirdparty: DolibarrThirdparty): "client" | "supplier" | "both" | "other" {
+  const isClient = getThirdpartyClientFlag(thirdparty) > 0;
+  const isSupplier = getThirdpartySupplierFlag(thirdparty) > 0;
+
+  if (isClient && isSupplier) {
+    return "both";
+  }
+
+  if (isSupplier) {
+    return "supplier";
+  }
+
+  if (isClient) {
+    return "client";
+  }
+
+  return "other";
+}
+
+export async function searchThirdparties(
+  query: string,
+  kind: ThirdpartySearchKind = "all",
+): Promise<DolibarrThirdparty[]> {
+  const search = dolibarrLikeLiteral(query);
+
   const params = dolibarrQueryString({
-    sqlfilters: `(t.nom:like:${dolibarrLikeLiteral(query)})`,
+    sqlfilters: `(t.nom:like:${search})`,
     limit: "10",
+    mode: thirdpartyModeParam[kind],
   });
 
   return dolibarr.get<DolibarrThirdparty[]>(`/thirdparties?${params}`);
