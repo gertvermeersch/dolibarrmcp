@@ -1,63 +1,69 @@
-Dolibarr MCP
-============
+# Dolibarr MCP
 
 This project is a TypeScript MCP server that exposes task-oriented Dolibarr ERP/CRM tools.
 It connects to Dolibarr through the REST API and serves MCP over HTTP.
 
-
-Setup
------
+## Setup
 
 1. Install dependencies:
 
+   ```sh
    npm install
+   ```
 
 2. Create a local environment file:
 
+   ```sh
    cp .env.example .env
+   ```
 
 3. Fill in these values:
 
-   MCP_API_KEY        Secret expected from MCP clients in the X-API-Key header.
-   DOLIBARR_URL       Full Dolibarr REST API base URL, for example:
-                     http://host.docker.internal/api/index.php
-   DOLIBARR_API_KEY   API token from the Dolibarr user account.
-   MCP_HTTP_HOST      Defaults to 0.0.0.0.
-   MCP_HTTP_PORT      Defaults to 3000.
+   | Variable | Description |
+   | --- | --- |
+   | `MCP_API_KEY` | Secret expected from MCP clients in the `X-API-Key` header. |
+   | `DOLIBARR_URL` | Full Dolibarr REST API base URL, for example `http://host.docker.internal/api/index.php`. |
+   | `DOLIBARR_API_KEY` | API token from the Dolibarr user account. |
+   | `MCP_HTTP_HOST` | Defaults to `0.0.0.0`. |
+   | `MCP_HTTP_PORT` | Defaults to `3000`. |
 
 4. Run locally:
 
+   ```sh
    npm run dev
+   ```
 
    Or with Docker:
 
+   ```sh
    docker compose up
+   ```
 
-
-Integration Tests
------------------
+## Integration Tests
 
 The integration tests run against a real Dolibarr REST API and create/delete real records.
 Use a development Dolibarr instance, not production data.
 
 Required environment:
 
-   DOLIBARR_URL       Full Dolibarr REST API base URL.
-   DOLIBARR_API_KEY   API token with thirdparty, proposal, and product/service permissions.
+| Variable | Description |
+| --- | --- |
+| `DOLIBARR_URL` | Full Dolibarr REST API base URL. |
+| `DOLIBARR_API_KEY` | API token with thirdparty, proposal, and product/service permissions. |
 
-MCP_API_KEY is not used by these tests; if it is missing, the test runner sets a local dummy
+`MCP_API_KEY` is not used by these tests; if it is missing, the test runner sets a local dummy
 value so the shared config module can load.
 
 Run:
 
-   npm run test:integration
+```sh
+npm run test:integration
+```
 
-The proposal test looks up the first available service through /products?mode=2&limit=1,
+The proposal test looks up the first available service through `/products?mode=2&limit=1`,
 then creates a validated proposal with one catalog service line and one free-text line.
 
-
-Dolibarr Requirements
----------------------
+## Dolibarr Requirements
 
 The Dolibarr instance must have the API REST module enabled.
 
@@ -69,79 +75,81 @@ Important Products/Services note:
 
 Dolibarr exposes products and services through the same REST endpoint:
 
-   /products
+```text
+/products
+```
 
 The MCP tools hide that detail:
 
-   search_products   Searches only products.
-   search_services   Searches only services.
+| Tool | Description |
+| --- | --- |
+| `search_products` | Searches only products. |
+| `search_services` | Searches only services. |
 
-However, even service searches use Dolibarr's /products API internally with mode=2.
+However, even service searches use Dolibarr's `/products` API internally with `mode=2`.
 That means the Products/Services module and API endpoint must be enabled, even if you only
 use services and never create products.
 
 For service search to work, confirm in Dolibarr:
 
-   - API REST module is enabled.
-   - Products/Services module is enabled.
-   - The API user has read permission for products/services.
+- API REST module is enabled.
+- Products/Services module is enabled.
+- The API user has read permission for products/services.
 
-
-Implemented Tools
------------------
+## Implemented Tools
 
 Read tools:
 
-   search_products
-   search_services
+- `search_products`
+- `search_services`
 
 Write tools:
 
-   create_thirdparty
-   update_thirdparty
-   create_invoice
-   create_supplier_invoice
-   create_proposal
-   set_proposal_status
+- `create_thirdparty`
+- `update_thirdparty`
+- `create_invoice`
+- `create_supplier_invoice`
+- `create_proposal`
+- `set_proposal_status`
 
 Some read tools are still stubs or planned work; see TODO.md for the current implementation
 checklist.
 
-
-Project Structure
------------------
+## Project Structure
 
 The MCP tool files are intentionally thin: they define the Zod input schema, call a domain
 service or Dolibarr API module, and format the MCP response.
 
 Tools are grouped by business domain under `src/tools/`:
 
-   catalog
-   invoices
-   proposals
-   search
-   thirdparties
+- `catalog`
+- `invoices`
+- `proposals`
+- `search`
+- `thirdparties`
 
 Shared document creation logic lives in:
 
-   src/dolibarr/documents/documentCreationService.ts
+```text
+src/dolibarr/documents/documentCreationService.ts
+```
 
 That service handles the common workflow for invoices, supplier invoices, and proposals:
 resolve the thirdparty, resolve catalog/free-text lines, create the document, add lines,
 and optionally validate it.
 
-
-Errors
-------
+## Errors
 
 Tool errors are returned as structured JSON. For example, when Dolibarr returns a 403 for a
 known module endpoint, the server returns:
 
-   {
-     "error": "DOLIBARR_MODULE_UNAVAILABLE",
-     "message": "Dolibarr refused access to the ... API. The module may be inactive or the API user may be missing permissions.",
-     "action": "..."
-   }
+```json
+{
+  "error": "DOLIBARR_MODULE_UNAVAILABLE",
+  "message": "Dolibarr refused access to the ... API. The module may be inactive or the API user may be missing permissions.",
+  "action": "..."
+}
+```
 
 Because Dolibarr uses the same 403 shape for inactive modules and missing permissions, check
 both when debugging access failures.
