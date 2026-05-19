@@ -1,8 +1,13 @@
 import { dolibarr } from "./client.js";
+import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrProduct } from "../types/dolibarr.js";
 
 export async function searchProducts(query: string): Promise<DolibarrProduct[]> {
-  return dolibarr.get<DolibarrProduct[]>(
-    `/products?sqlfilters=(t.ref%3Alike%3A'%25${encodeURIComponent(query)}%25')%20OR%20(t.label%3Alike%3A'%25${encodeURIComponent(query)}%25')&limit=10`,
-  );
+  const search = dolibarrLikeLiteral(query);
+  const params = dolibarrQueryString({
+    sqlfilters: `(t.ref:like:${search}) OR (t.label:like:${search})`,
+    limit: "10",
+  });
+  console.log(`/products?${params}`);
+  return dolibarr.get<DolibarrProduct[]>(`/products?${params}`);
 }

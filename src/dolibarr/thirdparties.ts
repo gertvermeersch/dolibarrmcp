@@ -1,10 +1,14 @@
 import { dolibarr } from "./client.js";
+import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrThirdparty } from "../types/dolibarr.js";
 
 export async function searchThirdparties(query: string): Promise<DolibarrThirdparty[]> {
-  return dolibarr.get<DolibarrThirdparty[]>(
-    `/thirdparties?sqlfilters=(t.nom%3Alike%3A'%25${encodeURIComponent(query)}%25')&limit=10`,
-  );
+  const params = dolibarrQueryString({
+    sqlfilters: `(t.nom:like:${dolibarrLikeLiteral(query)})`,
+    limit: "10",
+  });
+
+  return dolibarr.get<DolibarrThirdparty[]>(`/thirdparties?${params}`);
 }
 
 export async function getThirdparty(id: number): Promise<DolibarrThirdparty> {
