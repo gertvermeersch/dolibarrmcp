@@ -65,11 +65,16 @@ test("creates and validates a proposal with an existing service line and a free-
     getProposal,
     validateProposal,
   } = await loadApi();
-  //getting a random service
-  const services = await dolibarr.get<DolibarrProduct[]>("/products?mode=2&limit=1");
+  // Get a service that is active for sale; deactivated services make proposal validation fail.
+  const serviceParams = new URLSearchParams({
+    mode: "2",
+    limit: "1",
+    sqlfilters: "(t.tosell:=:1)",
+  });
+  const services = await dolibarr.get<DolibarrProduct[]>(`/products?${serviceParams}`);
   const catalogService = services[0];
   if (!catalogService) {
-    t.skip("Dolibarr has no service product available for the existing-service line.");
+    t.skip("Dolibarr has no active service product available for the existing-service line.");
     return;
   }
 
