@@ -24,6 +24,9 @@ export async function addInvoiceLine(
   return dolibarr.post<number>(`/invoices/${invoiceId}/lines`, line);
 }
 
-export async function validateInvoice(invoiceId: number): Promise<void> {
-  await dolibarr.post(`/invoices/${invoiceId}/validate`, {});
+export async function validateInvoice(
+  invoiceId: number,
+  options: { notrigger?: number } = {},
+): Promise<void> {
+  await dolibarr.post(`/invoices/${invoiceId}/validate`, { notrigger: options.notrigger ?? 0 });
 }

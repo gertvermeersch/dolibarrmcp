@@ -131,6 +131,10 @@ test("creates and validates a proposal with an existing service line and a free-
     assert.equal(Number(proposal.socid), clientId);
     assert.ok(Number(proposal.statut) > 0, `Expected validated proposal status, got ${proposal.statut}`);
     assert.ok((proposal.lines?.length ?? 0) >= 2);
+    const catalogLine = proposal.lines?.find((line) => Number(line.fk_product) === Number(catalogService.id));
+    assert.ok(catalogLine, `Expected proposal to include catalog service ${catalogService.ref}`);
+    assert.equal(Number(catalogLine.subprice), Number(catalogService.price));
+    assert.equal(Number(catalogLine.tva_tx), Number(catalogService.tva_tx));
   } catch (err) {
     testError = err;
   } finally {

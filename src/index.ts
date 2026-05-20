@@ -42,6 +42,27 @@ function createMcpServer(): McpServer {
   return server;
 }
 
+async function createTransport(): Promise<StreamableHTTPServerTransport> {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+    onsessioninitialized: (newSessionId) => {
+      transports.set(newSessionId, transport);
+    },
+  });
+
+  // Drop closed sessions so reconnects do not leak transports over time.
+  transport.onclose = () => {
+    if (transport.sessionId) {
+      transports.delete(transport.sessionId);
+    }
+  };
+
+  const server = createMcpServer();
+  await server.connect(transport);
+
+  return transport;
+}
+
 async function readJsonBody(req: IncomingMessage): Promise<unknown> {
   // Node's IncomingMessage is an async iterable, so collect the body chunks
   // before parsing the JSON-RPC request payload.
@@ -104,31 +125,28 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
       body = await readJsonBody(req);
     }
 
-    // A new transport can only be created from an MCP initialize request. All
-    // later requests must carry the mcp-session-id returned by that transport.
-    if (!transport) {
-      if (req.method !== "POST" || !isInitializeRequest(body)) {
-        writeJsonRpcError(res, 400, -32000, "Bad Request: Server not initialized");
-        return;
+    const isInitializationRequest = req.method === "POST" && isInitializeRequest(body);
+
+    // An initialize request starts a fresh MCP lifecycle. Some browser clients,
+    // including the MCP inspector, may keep sending the previous mcp-session-id
+    // when reconnecting after a dev-server reload. Reusing that transport would
+    // make the SDK reject the request as "Server already initialized", so replace
+    // the old session and let the initialize response publish the new session id.
+    if (isInitializationRequest) {
+      if (transport) {
+        if (sessionIdValue) {
+          transports.delete(sessionIdValue);
+        }
+        await transport.close();
       }
 
-      const newTransport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => crypto.randomUUID(),
-        onsessioninitialized: (newSessionId) => {
-          transports.set(newSessionId, newTransport);
-        },
-      });
-      transport = newTransport;
+      transport = await createTransport();
+    }
 
-      // Drop closed sessions so reconnects do not leak transports over time.
-      newTransport.onclose = () => {
-        if (newTransport.sessionId) {
-          transports.delete(newTransport.sessionId);
-        }
-      };
-
-      const server = createMcpServer();
-      await server.connect(transport);
+    // Later requests must carry the mcp-session-id returned by initialization.
+    if (!transport) {
+      writeJsonRpcError(res, 400, -32000, "Bad Request: Server not initialized");
+      return;
     }
 
     await transport.handleRequest(req, res, body);

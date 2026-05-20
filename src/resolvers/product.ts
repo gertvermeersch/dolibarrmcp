@@ -40,11 +40,11 @@ export async function resolveLine(
       fk_product: product.id,
       product_ref: product.ref,
       qty: input.qty,
+      subprice: input.unit_price ?? product.price,
+      tva_tx: input.vat_rate ?? product.tva_tx,
     };
 
     if (input.description) line.desc = input.description;
-    if (input.unit_price !== undefined) line.subprice = input.unit_price;
-    if (input.vat_rate !== undefined) line.tva_tx = input.vat_rate;
 
     return {
       ok: true,
