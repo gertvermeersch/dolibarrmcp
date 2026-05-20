@@ -12,10 +12,10 @@ Generated from a project scan on 2026-05-20.
   - [x] Fetch unpaid validated invoices.
   - [x] Resolve thirdparty names for unique `socid` values.
   - [x] Group invoices by client and bucket overdue balances into `0-30`, `31-60`, `61-90`, and `90+` days.
-- [ ] Implement `get_monthly_revenue` in `src/tools/invoices/getMonthlyRevenue.ts`.
-  - [ ] Accept `year` and `month`.
-  - [ ] Build a Dolibarr date range for the month.
-  - [ ] Fetch validated invoices, group by client, and return client totals plus grand totals.
+- [x] Implement `get_monthly_revenue` in `src/tools/invoices/getMonthlyRevenue.ts`.
+  - [x] Accept `year` and `month`.
+  - [x] Build a Dolibarr date range for the month.
+  - [x] Fetch finalized invoices and return monthly revenue totals.
 - [ ] Implement `search_across` in `src/tools/search/searchAcross.ts`.
   - [ ] Search thirdparties, invoices, and orders in parallel.
   - [ ] Return lean grouped results with IDs, refs/names, dates, and statuses.
