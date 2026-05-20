@@ -8,10 +8,10 @@ Generated from a project scan on 2026-05-20.
   - [x] Resolve the client by ID or name with `resolveThirdparty`.
   - [x] Fetch thirdparty details, contacts, open invoices, and last order information.
   - [x] Return company info, contacts, open invoice count, unpaid balance, and last order date.
-- [ ] Implement `get_outstanding_receivables` in `src/tools/invoices/getOutstandingReceivables.ts`.
-  - [ ] Fetch unpaid validated invoices.
-  - [ ] Resolve thirdparty names for unique `socid` values.
-  - [ ] Group invoices by client and bucket overdue balances into `0-30`, `31-60`, `61-90`, and `90+` days.
+- [x] Implement `get_outstanding_receivables` in `src/tools/invoices/getOutstandingReceivables.ts`.
+  - [x] Fetch unpaid validated invoices.
+  - [x] Resolve thirdparty names for unique `socid` values.
+  - [x] Group invoices by client and bucket overdue balances into `0-30`, `31-60`, `61-90`, and `90+` days.
 - [ ] Implement `get_monthly_revenue` in `src/tools/invoices/getMonthlyRevenue.ts`.
   - [ ] Accept `year` and `month`.
   - [ ] Build a Dolibarr date range for the month.
