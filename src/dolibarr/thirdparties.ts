@@ -1,6 +1,6 @@
 import { dolibarr, isDolibarrNotFoundError } from "./client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
-import type { DolibarrThirdparty } from "../types/dolibarr.js";
+import type { DolibarrContact, DolibarrThirdparty } from "../types/dolibarr.js";
 
 export type ThirdpartySearchKind = "all" | "clients" | "suppliers";
 
@@ -59,6 +59,15 @@ export async function searchThirdparties(
 
 export async function getThirdparty(id: number): Promise<DolibarrThirdparty> {
   return dolibarr.get<DolibarrThirdparty>(`/thirdparties/${id}`);
+}
+
+export async function getThirdpartyContacts(id: number): Promise<DolibarrContact[]> {
+  try {
+    return await dolibarr.get<DolibarrContact[]>(`/thirdparties/${id}/contacts`);
+  } catch (err) {
+    if (isDolibarrNotFoundError(err)) return [];
+    throw err;
+  }
 }
 
 export async function createThirdparty(

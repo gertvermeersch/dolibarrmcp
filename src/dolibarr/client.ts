@@ -104,6 +104,12 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
       action: "Enable the Dolibarr Commercial proposals module and grant the API user proposal permissions required by this tool.",
     };
   }
+  if (path.startsWith("/orders")) {
+    return {
+      name: "Customer orders",
+      action: "Enable the Dolibarr Customer orders module and grant the API user order permissions required by this tool.",
+    };
+  }
   return undefined;
 }
 

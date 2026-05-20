@@ -19,6 +19,21 @@ export interface DolibarrThirdparty {
   outstanding_balance?: number;
 }
 
+export interface DolibarrContact {
+  id: number;
+  firstname?: string;
+  lastname?: string;
+  name?: string;
+  email?: string;
+  phone_pro?: string;
+  phone_perso?: string;
+  phone_mobile?: string;
+  poste?: string;
+  address?: string;
+  zip?: string;
+  town?: string;
+}
+
 export interface DolibarrInvoice {
   id: number;
   ref: string;
@@ -55,6 +70,18 @@ export interface DolibarrProposal {
   total_ttc: number;
   statut: number; // 0=draft, 1=validated, 2=signed, 3=refused, 4=billed
   lines?: DolibarrInvoiceLine[];
+}
+
+export interface DolibarrOrder {
+  id: number;
+  ref: string;
+  socid: number;
+  date?: number;
+  date_commande?: number;
+  total_ht?: number;
+  total_ttc?: number;
+  statut?: number;
+  status?: number;
 }
 
 export interface DolibarrProduct {
