@@ -113,6 +113,7 @@ which default to `0.0.0.0:3000`.
 MCP_API_KEY        Secret used to authenticate incoming MCP requests (X-API-Key header)
 DOLIBARR_URL       Full base URL to Dolibarr REST API
 DOLIBARR_API_KEY   Dolibarr personal API token
+DOLIBARR_DEBUG     Optional: true/1/yes/on logs Dolibarr requests and responses
 MCP_HTTP_HOST      Default: 0.0.0.0
 MCP_HTTP_PORT      Default: 3000
 ```

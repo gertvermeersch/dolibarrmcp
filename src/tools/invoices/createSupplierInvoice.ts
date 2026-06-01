@@ -19,15 +19,17 @@ export function registerCreateSupplierInvoice(server: McpServer): void {
       description: "Create a supplier invoice with lines. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
       inputSchema: {
         supplier: z.string().describe("Supplier name or Dolibarr ID"),
+        supplier_invoice_ref: z.string().min(1).describe("Supplier's invoice reference/number. Must be unique for this supplier."),
         date: z.string().describe("Invoice date (YYYY-MM-DD)"),
         lines: z.array(lineSchema).min(1),
         validate: z.boolean().default(false).describe("Validate the invoice immediately after creation"),
       },
     },
-    async ({ supplier, date, lines, validate }) => {
+    async ({ supplier, supplier_invoice_ref, date, lines, validate }) => {
       try {
         const result = await createSupplierInvoiceService.create({
           thirdparty: supplier,
+          refSupplier: supplier_invoice_ref,
           date,
           lines,
           validate,
@@ -38,6 +40,7 @@ export function registerCreateSupplierInvoice(server: McpServer): void {
                 success: true,
                 invoice_id: result.id,
                 supplier: result.thirdparty,
+                supplier_invoice_ref,
                 validated: result.validated,
                 lines: result.lines,
               }

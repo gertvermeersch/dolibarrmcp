@@ -1,6 +1,8 @@
 import { config } from "../config.js";
 import type { McpError } from "../types/tools.js";
 
+const debugBodyLimit = 4000;
+
 export class DolibarrApiError extends Error {
   constructor(
     public status: number,
@@ -21,23 +23,87 @@ function parseJsonMaybe(text: string): unknown {
   }
 }
 
+function truncateDebugText(text: string): string {
+  if (text.length <= debugBodyLimit) return text;
+  return `${text.slice(0, debugBodyLimit)}... [truncated ${text.length - debugBodyLimit} chars]`;
+}
+
+function debugPayloadFromText(text: string): unknown {
+  if (!text) return undefined;
+  const parsed = parseJsonMaybe(text);
+  return parsed === undefined ? truncateDebugText(text) : parsed;
+}
+
+function logDolibarrRequest(method: string, path: string, url: string, bodyText?: string): void {
+  if (!config.dolibarrDebug) return;
+
+  console.log("[dolibarr] ->", `${method} ${path}`, {
+    url,
+    body: bodyText === undefined ? undefined : debugPayloadFromText(bodyText),
+  });
+}
+
+function logDolibarrResponse(
+  method: string,
+  path: string,
+  status: number,
+  statusText: string,
+  durationMs: number,
+  text: string,
+): void {
+  if (!config.dolibarrDebug) return;
+
+  const log = status >= 400 ? console.error : console.log;
+  log("[dolibarr] <-", `${method} ${path}`, {
+    status,
+    statusText,
+    durationMs: Math.round(durationMs),
+    body: debugPayloadFromText(text),
+  });
+}
+
+function logDolibarrFetchError(
+  method: string,
+  path: string,
+  durationMs: number,
+  err: unknown,
+): void {
+  if (!config.dolibarrDebug) return;
+
+  console.error("[dolibarr] !!", `${method} ${path}`, {
+    durationMs: Math.round(durationMs),
+    error: err instanceof Error ? err.message : err,
+  });
+}
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
 ): Promise<T> {
   const url = `${config.dolibarrUrl}${path}`;
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "DOLAPIKEY": config.dolibarrApiKey,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const bodyText = body !== undefined ? JSON.stringify(body) : undefined;
+  const start = performance.now();
+  logDolibarrRequest(method, path, url, bodyText);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers: {
+        "DOLAPIKEY": config.dolibarrApiKey,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: bodyText,
+    });
+  } catch (err) {
+    logDolibarrFetchError(method, path, performance.now() - start, err);
+    throw err;
+  }
 
   const text = await res.text().catch(() => res.statusText);
+  logDolibarrResponse(method, path, res.status, res.statusText, performance.now() - start, text);
 
   if (!res.ok) {
     throw new DolibarrApiError(

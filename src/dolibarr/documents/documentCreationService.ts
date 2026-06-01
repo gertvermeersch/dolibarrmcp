@@ -6,6 +6,7 @@ import type { LineItemInput, LineResolution, McpError } from "../../types/tools.
 export interface DocumentCreationInput {
   thirdparty: string;
   date: string;
+  refSupplier?: string;
   lines: LineItemInput[];
   validate: boolean;
 }
@@ -32,6 +33,7 @@ interface DocumentApi {
   create(data: {
     socid: number;
     date: number;
+    ref_supplier?: string;
     lines?: Partial<DolibarrInvoiceLine>[];
   }): Promise<number>;
   addLine(id: number, line: Partial<DolibarrInvoiceLine>): Promise<number>;
@@ -69,7 +71,11 @@ export class DocumentCreationService {
     });
 
     const date = Math.floor(new Date(input.date).getTime() / 1000);
-    const id = await this.api.create({ socid: resolvedThirdparty.id, date });
+    const id = await this.api.create({
+      socid: resolvedThirdparty.id,
+      date,
+      ...(input.refSupplier ? { ref_supplier: input.refSupplier } : {}),
+    });
 
     for (const resolvedLine of resolvedLines) {
        await this.api.addLine(id, resolvedLine.line);

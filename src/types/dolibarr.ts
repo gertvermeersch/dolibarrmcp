@@ -52,6 +52,7 @@ export interface DolibarrInvoiceLine {
   fk_product?: number;
   product_ref?: string;
   product_label?: string;
+  product_type?: number;
   desc: string;
   qty: number;
   subprice: number; // unit price excl. tax

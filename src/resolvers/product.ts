@@ -39,6 +39,7 @@ export async function resolveLine(
     const line: Partial<DolibarrInvoiceLine> = {
       fk_product: product.id,
       product_ref: product.ref,
+      product_type: product.type,
       qty: input.qty,
       subprice: input.unit_price ?? product.price,
       tva_tx: input.vat_rate ?? product.tva_tx,

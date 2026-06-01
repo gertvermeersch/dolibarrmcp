@@ -24,6 +24,7 @@ It connects to Dolibarr through the REST API and serves MCP over HTTP.
    | `MCP_API_KEY` | Secret expected from MCP clients in the `X-API-Key` header. |
    | `DOLIBARR_URL` | Full Dolibarr REST API base URL, for example `http://host.docker.internal/api/index.php`. |
    | `DOLIBARR_API_KEY` | API token from the Dolibarr user account. |
+   | `DOLIBARR_DEBUG` | Optional. Set to `true` to log Dolibarr requests and responses to the console. |
    | `MCP_HTTP_HOST` | Defaults to `0.0.0.0`. |
    | `MCP_HTTP_PORT` | Defaults to `3000`. |
 
