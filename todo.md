@@ -16,10 +16,10 @@ Generated from a project scan on 2026-05-20.
   - [x] Accept `year` and `month`.
   - [x] Build a Dolibarr date range for the month.
   - [x] Fetch finalized invoices and return monthly revenue totals.
-- [ ] Implement `search_across` in `src/tools/search/searchAcross.ts`.
-  - [ ] Search thirdparties, invoices, and orders in parallel.
-  - [ ] Return lean grouped results with IDs, refs/names, dates, and statuses.
-  - [ ] Add an orders API helper if Dolibarr order search is included.
+- [x] Implement `search_across` in `src/tools/search/searchAcross.ts`.
+  - [x] Search thirdparties, invoices, and orders in parallel.
+  - [x] Return lean grouped results with IDs, refs/names, dates, and statuses.
+ 
 
 ## Existing implementation to verify
 

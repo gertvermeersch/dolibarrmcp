@@ -1,5 +1,14 @@
-import { dolibarr } from "./client.js";
+import { dolibarr, isDolibarrNotFoundError } from "./client.js";
 import type { DolibarrProposal, DolibarrInvoiceLine } from "../types/dolibarr.js";
+
+export async function listProposals(params: string): Promise<DolibarrProposal[]> {
+  try {
+    return await dolibarr.get<DolibarrProposal[]>(`/proposals?${params}`);
+  } catch (err) {
+    if (isDolibarrNotFoundError(err)) return [];
+    throw err;
+  }
+}
 
 export async function createProposal(data: {
   socid: number;
