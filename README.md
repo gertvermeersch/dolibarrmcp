@@ -103,6 +103,7 @@ Read tools:
 
 - `get_client_overview`
 - `get_invoice_detail`
+- `get_supplier_invoice_detail`
 - `get_proposal_detail`
 - `get_monthly_revenue`
 - `get_outstanding_receivables`

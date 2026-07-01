@@ -99,8 +99,8 @@ Add new codes there if needed; never use ad-hoc string literals.
 - Auth header: `DOLAPIKEY: <token>` (set automatically by `dolibarr/client.ts`)
 - Dates are Unix timestamps (seconds), not ISO strings — convert with `Math.floor(new Date(str).getTime() / 1000)`
 - Thirdparty flags: `client: 1` = client, `supplier: 1` = supplier (both can be 1 simultaneously)
-- Supplier invoices use a separate endpoint family: `/fourn/invoices` not `/invoices`
-- Proposal status flow: draft → validate → close (accepted or refused); `setProposalStatus` handles this internally
+- Supplier invoices use a separate endpoint family: `/supplierinvoices`, not `/invoices`
+- Proposal status flow: draft → validate → close (accepted or refused); `setProposalStatus` posts numeric close statuses (`2` accepted, `3` refused)
 
 ## Local Dolibarr source reference
 

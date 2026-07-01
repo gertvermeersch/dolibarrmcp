@@ -158,7 +158,7 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
       action: "Enable the Dolibarr Invoices module and grant the API user invoice permissions required by this tool.",
     };
   }
-  if (path.startsWith("/fourn/invoices") || path.startsWith("/fourn/factures")) {
+  if (path.startsWith("/supplierinvoices")) {
     return {
       name: "Supplier invoices",
       action: "Enable the Dolibarr Supplier invoices module and grant the API user supplier invoice permissions required by this tool.",

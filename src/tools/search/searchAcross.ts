@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { listInvoices } from "../../dolibarr/invoices.js";
 import { listOrders } from "../../dolibarr/orders.js";
 import { listProposals } from "../../dolibarr/proposals.js";
+import { listSupplierInvoices } from "../../dolibarr/supplierInvoices.js";
 import {
   getThirdpartyClientFlag,
   getThirdpartySupplierFlag,
@@ -14,6 +15,20 @@ import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilt
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 const resultLimit = "10";
+
+type SupplierInvoiceSearchResult = {
+  id: number;
+  ref: string;
+  socid: number;
+  statut: number;
+  date: number;
+  date_lim_reglement: number;
+  total_ht: number;
+  total_ttc: number;
+  ref_supplier?: string;
+  refSupplier?: string;
+  supplier_ref?: string;
+};
 
 async function optionalSearch<T>(search: () => Promise<T[]>): Promise<T[]> {
   try {
@@ -41,7 +56,7 @@ export function registerSearchAcross(server: McpServer): void {
   server.registerTool(
     "search_across",
     {
-      description: "Fuzzy search across thirdparties, invoices, orders, and proposals simultaneously.",
+      description: "Fuzzy search across thirdparties, client invoices, supplier invoices, orders, and proposals simultaneously.",
       inputSchema: { query: z.string().describe("Search term") },
     },
     async ({ query }) => {
@@ -52,8 +67,9 @@ export function registerSearchAcross(server: McpServer): void {
           .filter(Number.isFinite))];
         const searchParams = documentSearchParams(query, thirdpartyIds);
 
-        const [invoices, orders, proposals] = await Promise.all([
+        const [invoices, supplierInvoices, orders, proposals] = await Promise.all([
           optionalSearch(() => listInvoices(searchParams)),
+          optionalSearch(() => listSupplierInvoices(searchParams)),
           optionalSearch(() => listOrders(searchParams)),
           optionalSearch(() => listProposals(searchParams)),
         ]);
@@ -82,6 +98,20 @@ export function registerSearchAcross(server: McpServer): void {
             total_ht: invoice.total_ht,
             total_ttc: invoice.total_ttc,
           })),
+          supplier_invoices: supplierInvoices.map((invoice) => {
+            const supplierInvoice = invoice as SupplierInvoiceSearchResult;
+            return {
+              id: invoice.id,
+              ref: invoice.ref,
+              supplier_ref: supplierInvoice.ref_supplier ?? supplierInvoice.refSupplier ?? supplierInvoice.supplier_ref,
+              supplier_id: invoice.socid,
+              status: invoice.statut,
+              date: invoice.date,
+              due_date: invoice.date_lim_reglement,
+              total_ht: invoice.total_ht,
+              total_ttc: invoice.total_ttc,
+            };
+          }),
           orders: orders.map((order) => ({
             id: order.id,
             ref: order.ref,

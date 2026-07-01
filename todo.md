@@ -34,18 +34,20 @@ Generated from a project scan on 2026-05-20.
 - [x] Tighten `set_proposal_status`.
   - [x] Only ignore the validate step when the proposal is already validated.
   - [x] Do not swallow unrelated validation failures before closing the proposal.
-- [ ] Confirm proposal close API shape for `POST /proposals/{id}/close`.
-- [ ] Confirm supplier invoice endpoint paths.
-  - [ ] Current code uses `/fourn/invoices`.
-  - [ ] Some Dolibarr versions expose supplier invoices as `/fourn/factures`.
-- [ ] Confirm proposal line endpoint path.
-  - [ ] Current code uses `/proposals/{id}/line`.
-  - [ ] Verify whether this Dolibarr version also supports or expects `/proposals/{id}/lines`.
+- [x] Confirm proposal close API shape for `POST /proposals/{id}/close`.
+  - [x] Verified with a disposable proposal on 2026-07-02: body `{ status: 3, note_private, notrigger }` closes as refused with `statut = 3`.
+  - [x] Current code maps accepted/refused to numeric statuses `2`/`3`.
+- [x] Confirm supplier invoice endpoint paths.
+  - [x] Verified on 2026-07-02: `/supplierinvoices?limit=1` works.
+  - [x] Verified on 2026-07-02: `/fourn/invoices?limit=1` and `/fourn/factures?limit=1` return `501 API not found`.
+- [x] Confirm proposal line endpoint path.
+  - [x] Current code uses `/proposals/{id}/line`.
+  - [x] Verified on 2026-07-02: this Dolibarr version supports both `/proposals/{id}/line` and `/proposals/{id}/lines` for adding lines.
 
 ## Dolibarr API helpers to add
 
 - [ ] Add delete helpers for client invoices and supplier invoices so integration tests can clean up created records.
-- [ ] Add get/list helpers for supplier invoices to support verification after creation.
+- [x] Add get/list helpers for supplier invoices to support verification after creation.
 - [x] Add a contacts helper for `GET /thirdparties/{id}/contacts`.
 - [x] Add an orders helper if `get_client_overview` or `search_across` needs last order/search results.
 - [ ] Add shared status-label helpers for invoices and proposals instead of duplicating status maps inside tools.

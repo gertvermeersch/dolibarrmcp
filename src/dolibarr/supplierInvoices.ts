@@ -1,6 +1,14 @@
 import { dolibarr } from "./client.js";
 import type { DolibarrInvoice, DolibarrInvoiceLine } from "../types/dolibarr.js";
 
+export async function getSupplierInvoice(id: number): Promise<DolibarrInvoice> {
+  return dolibarr.get<DolibarrInvoice>(`/supplierinvoices/${id}?includeLines=1`);
+}
+
+export async function listSupplierInvoices(params: string): Promise<DolibarrInvoice[]> {
+  return dolibarr.get<DolibarrInvoice[]>(`/supplierinvoices?${params}`);
+}
+
 export async function createSupplierInvoice(data: {
   socid: number;
   date: number;
