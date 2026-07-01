@@ -1,8 +1,16 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { validateProposal, closeProposal } from "../../dolibarr/proposals.js";
-import { toApiError } from "../../dolibarr/client.js";
+import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { jsonContent } from "../shared/responses.js";
+
+function isAlreadyValidatedProposalError(err: unknown, proposalId: number): boolean {
+  return (
+    err instanceof DolibarrApiError &&
+    err.status === 304 &&
+    err.path === `/proposals/${proposalId}/validate`
+  );
+}
 
 export function registerSetProposalStatus(server: McpServer): void {
   server.registerTool(
@@ -21,9 +29,11 @@ export function registerSetProposalStatus(server: McpServer): void {
     async ({ proposal_id, status, note, note_private, note_public, notrigger }) => {
       try {
         // Dolibarr requires a proposal to be validated before it can be closed
-        await validateProposal(proposal_id).catch(() => {
-          // Already validated — safe to ignore
-        });
+        try {
+          await validateProposal(proposal_id, { notrigger });
+        } catch (err) {
+          if (!isAlreadyValidatedProposalError(err, proposal_id)) throw err;
+        }
 
         await closeProposal(proposal_id, status, {
           note_private: note_private ?? note,

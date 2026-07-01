@@ -101,8 +101,14 @@ For service search to work, confirm in Dolibarr:
 
 Read tools:
 
+- `get_client_overview`
+- `get_invoice_detail`
+- `get_monthly_revenue`
+- `get_outstanding_receivables`
+- `search_across`
 - `search_products`
 - `search_services`
+- `search_thirdparties`
 
 Write tools:
 
@@ -110,11 +116,12 @@ Write tools:
 - `update_thirdparty`
 - `create_invoice`
 - `create_supplier_invoice`
+- `validate_invoice`
 - `create_proposal`
+- `validate_proposal`
 - `set_proposal_status`
 
-Some read tools are still stubs or planned work; see TODO.md for the current implementation
-checklist.
+See `todo.md` for the current implementation and verification checklist.
 
 ## Project Structure
 

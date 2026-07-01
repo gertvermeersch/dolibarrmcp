@@ -23,17 +23,17 @@ Generated from a project scan on 2026-05-20.
 
 ## Existing implementation to verify
 
-- [ ] Verify `get_invoice_detail` against the real Dolibarr API.
-  - [ ] Confirm `/invoices/{id}?includeLines=1` returns lines in the expected shape.
-  - [ ] Confirm invoice lookup by `ref` works with the current SQL filter.
-  - [ ] Confirm payment fields such as `totalpaid`, `total_paye`, `remaintopay`, and `remaining_to_pay` are correct for this Dolibarr version.
-- [ ] Update stale docs after verification.
-  - [ ] `README.md` currently says some read tools are stubs but does not list `get_invoice_detail` as implemented.
-  - [ ] `agents.md` still lists `get_invoice_detail` as a stub.
-  - [ ] `TODO.md` refers to `src/tools/read/`, but the actual tools live under domain folders in `src/tools/`.
-- [ ] Tighten `set_proposal_status`.
-  - [ ] Only ignore the validate step when the proposal is already validated.
-  - [ ] Do not swallow unrelated validation failures before closing the proposal.
+- [x] Verify `get_invoice_detail` against the real Dolibarr API.
+  - [x] Confirm `/invoices/{id}?includeLines=1` returns lines in the expected shape.
+  - [x] Confirm invoice lookup by `ref` works with the current SQL filter.
+  - [x] Confirm payment fields such as `totalpaid`, `total_paye`, `remaintopay`, and `remaining_to_pay` are correct for this Dolibarr version.
+- [x] Update stale docs after verification.
+  - [x] `README.md` lists verified read tools, including `get_invoice_detail`.
+  - [x] `agents.md` lists verified read tools as implemented.
+  - [x] Documentation should refer to `todo.md` and domain folders under `src/tools/`.
+- [x] Tighten `set_proposal_status`.
+  - [x] Only ignore the validate step when the proposal is already validated.
+  - [x] Do not swallow unrelated validation failures before closing the proposal.
 - [ ] Confirm proposal close API shape for `POST /proposals/{id}/close`.
 - [ ] Confirm supplier invoice endpoint paths.
   - [ ] Current code uses `/fourn/invoices`.

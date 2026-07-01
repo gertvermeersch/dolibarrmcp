@@ -102,6 +102,20 @@ Add new codes there if needed; never use ad-hoc string literals.
 - Supplier invoices use a separate endpoint family: `/fourn/invoices` not `/invoices`
 - Proposal status flow: draft → validate → close (accepted or refused); `setProposalStatus` handles this internally
 
+## Local Dolibarr source reference
+
+A local Dolibarr source tree is available at `vendor/dolibarr/`. Treat it as read-only
+upstream reference material, not as code owned by this MCP project.
+
+Use it to confirm REST endpoint paths, request bodies, status constants, and version-specific
+behavior before changing API wrappers or tool flows. Useful entry points include:
+
+- `vendor/dolibarr/htdocs/comm/propal/class/api_proposals.class.php`
+- `vendor/dolibarr/htdocs/compta/facture/class/api_invoices.class.php`
+- `vendor/dolibarr/htdocs/fourn/class/api_supplier_invoices.class.php`
+- `vendor/dolibarr/htdocs/product/class/api_products.class.php`
+- `vendor/dolibarr/htdocs/societe/class/api_thirdparties.class.php`
+
 ---
 
 ## Environment variables
@@ -150,24 +164,25 @@ invoice-like or proposal-like documents with thirdparty resolution and line item
 ## What is and isn't implemented
 
 ### Fully implemented
+- `get_client_overview` (read)
+- `get_invoice_detail` (read)
+- `get_monthly_revenue` (read)
+- `get_outstanding_receivables` (read)
+- `search_across` (read)
 - `search_products` (read)
 - `search_services` (read)
+- `search_thirdparties` (read)
 - `create_thirdparty` (write)
 - `update_thirdparty` (write)
 - `create_invoice` (write)
 - `create_supplier_invoice` (write)
+- `validate_invoice` (write)
 - `create_proposal` (write)
+- `validate_proposal` (write)
 - `set_proposal_status` (write)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver
 - `dolibarr/client.ts` — fetch wrapper + error normalisation
 - All `dolibarr/*.ts` API modules
 
-### Stubs — need implementing
-- `get_client_overview` (read)
-- `get_outstanding_receivables` (read)
-- `get_invoice_detail` (read)
-- `get_monthly_revenue` (read)
-- `search_across` (read)
-
-See `TODO.md` for detailed task breakdowns.
+See `todo.md` for detailed task breakdowns and remaining verification work.
