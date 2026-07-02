@@ -79,31 +79,31 @@ Generated from a project scan on 2026-05-20.
 
 Use `test/integration/dolibarr-api.test.ts` as the reference style: skip when `DOLIBARR_URL` or `DOLIBARR_API_KEY` is missing, create disposable records, verify through the API, and clean up in `finally`.
 
-- [ ] Add a client invoice lifecycle integration test.
-  - [ ] Create a disposable client thirdparty.
-  - [ ] Find an active service/product line.
-  - [ ] Create a client invoice with one catalog line and one free-text line.
-  - [ ] Validate the invoice.
-  - [ ] Fetch it with `getInvoice`.
-  - [ ] Exercise `get_invoice_detail` by ID and by ref.
-  - [ ] Delete the invoice and thirdparty during cleanup.
-- [ ] Add a supplier invoice lifecycle integration test.
-  - [ ] Create a disposable supplier thirdparty.
-  - [ ] Create a supplier invoice with a catalog/free-text line where supported.
-  - [ ] Validate the supplier invoice.
-  - [ ] Fetch it back through a supplier invoice helper.
-  - [ ] Delete the supplier invoice and supplier during cleanup.
-- [ ] Add a proposal status integration test.
-  - [ ] Create a disposable proposal.
-  - [ ] Validate it.
-  - [ ] Mark it accepted or refused through `closeProposal` or the MCP tool path.
-  - [ ] Verify the resulting Dolibarr status.
-  - [ ] Clean up the proposal and thirdparty.
-- [ ] Add integration coverage for catalog and thirdparty searches.
-  - [ ] `searchProducts`
-  - [ ] `searchServices`
-  - [ ] `searchThirdparties`
-  - [ ] MCP tool formatting for `search_products`, `search_services`, and `search_thirdparties`
+- [x] Add a client invoice lifecycle integration test.
+  - [x] Create a disposable client thirdparty.
+  - [x] Find an active service/product line.
+  - [x] Create a client invoice with one catalog line and one free-text line.
+  - [x] Validate the invoice.
+  - [x] Fetch it with `getInvoice`.
+  - [x] Exercise `get_invoice_detail` by ID and by ref.
+  - [x] Delete the invoice and thirdparty during cleanup.
+- [x] Add a supplier invoice lifecycle integration test.
+  - [x] Create a disposable supplier thirdparty.
+  - [x] Create a supplier invoice with a catalog/free-text line where supported.
+  - [x] Validate the supplier invoice.
+  - [x] Fetch it back through a supplier invoice helper.
+  - [x] Delete the supplier invoice and supplier during cleanup.
+- [x] Add a proposal status integration test.
+  - [x] Create a disposable proposal.
+  - [x] Validate it.
+  - [x] Mark it accepted or refused through `closeProposal` or the MCP tool path.
+  - [x] Verify the resulting Dolibarr status.
+  - [x] Clean up the proposal and thirdparty.
+- [x] Add integration coverage for catalog and thirdparty searches.
+  - [x] `searchProducts`
+  - [x] `searchServices`
+  - [x] `searchThirdparties`
+  - [x] MCP tool formatting for `search_products`, `search_services`, and `search_thirdparties`
 - [ ] Add integration coverage for the remaining read tools once implemented.
   - [ ] `get_client_overview`
   - [ ] `get_outstanding_receivables`
