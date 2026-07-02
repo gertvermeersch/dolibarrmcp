@@ -5,6 +5,14 @@ import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
+import {
+  dolibarrId,
+  isoDateFromTimestamp,
+  isoInstantFromTimestamp,
+  moneyOrZero,
+  numberOrUndefined,
+  remainingToPay,
+} from "../shared/normalization.js";
 import type { DolibarrInvoice, DolibarrThirdparty } from "../../types/dolibarr.js";
 
 const agingBucketNames = ["0-30", "31-60", "61-90", "90+"] as const;
@@ -26,29 +34,8 @@ function emptyAgingBuckets(): AgingBucketTotals {
   };
 }
 
-function numberOrUndefined(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-function isPaid(invoice: DolibarrInvoice): boolean {
-  const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
-  return Number(invoice.statut) === 2 || Number(rawInvoice.paye ?? 0) === 1;
-}
-
-function remainingToPay(invoice: DolibarrInvoice): number {
-  if (isPaid(invoice)) return 0;
-
-  const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
-  const explicitRemaining = numberOrUndefined(rawInvoice.remaintopay ?? rawInvoice.remaining_to_pay);
-  if (explicitRemaining !== undefined) return explicitRemaining;
-
-  const amountPaid = numberOrUndefined(rawInvoice.totalpaid ?? rawInvoice.total_paye) ?? 0;
-  return Math.max(0, Number(invoice.total_ttc) - amountPaid);
-}
-
 function isOpenInvoice(invoice: DolibarrInvoice): boolean {
-  return Number(invoice.statut) === 1 && !isPaid(invoice);
+  return Number(invoice.statut) === 1 && remainingToPay(invoice) > 0;
 }
 
 function invoiceTimestamp(invoice: DolibarrInvoice): number | undefined {
@@ -69,7 +56,7 @@ function agingBucket(days: number): AgingBucketName {
 }
 
 function addToBucket(buckets: AgingBucketTotals, bucket: AgingBucketName, amount: number): void {
-  buckets[bucket].amount += amount;
+  buckets[bucket].amount = moneyOrZero(buckets[bucket].amount + amount);
   buckets[bucket].count += 1;
 }
 
@@ -96,7 +83,7 @@ async function listOpenValidatedInvoices(): Promise<DolibarrInvoice[]> {
 }
 
 async function resolveClients(invoices: DolibarrInvoice[]): Promise<Map<number, DolibarrThirdparty>> {
-  const clientIds = Array.from(new Set(invoices.map((invoice) => Number(invoice.socid))));
+  const clientIds = Array.from(new Set(invoices.map((invoice) => dolibarrId(invoice.socid))));
   const clients = await Promise.all(clientIds.map((id) => getThirdparty(id)));
   return new Map(clients.map((client) => [Number(client.id), client]));
 }
@@ -123,8 +110,8 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
             id: number;
             ref: string;
             status: string;
-            date: number;
-            due_date: number;
+            date?: string;
+            due_date?: string;
             days_overdue: number;
             aging_bucket: AgingBucketName;
             total_ttc: number;
@@ -133,7 +120,7 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
         }>();
 
         for (const invoice of invoices) {
-          const clientId = Number(invoice.socid);
+          const clientId = dolibarrId(invoice.socid);
           const amount = remainingToPay(invoice);
           if (amount <= 0) continue;
 
@@ -153,18 +140,18 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
           }
 
           group.invoice_count += 1;
-          group.total_outstanding += amount;
+          group.total_outstanding = moneyOrZero(group.total_outstanding + amount);
           addToBucket(group.aging_buckets, bucket, amount);
           addToBucket(totals, bucket, amount);
           group.invoices.push({
-            id: invoice.id,
+            id: dolibarrId(invoice.id),
             ref: invoice.ref,
             status: invoiceStatusLabel(invoice.statut) ?? "unknown",
-            date: invoice.date,
-            due_date: invoice.date_lim_reglement,
+            date: isoDateFromTimestamp(invoice.date),
+            due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
             days_overdue: overdueDays,
             aging_bucket: bucket,
-            total_ttc: invoice.total_ttc,
+            total_ttc: moneyOrZero(invoice.total_ttc),
             remaining_to_pay: amount,
           });
         }
@@ -179,17 +166,17 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
               phone: group.client?.phone,
             },
             invoice_count: group.invoice_count,
-            total_outstanding: group.total_outstanding,
+            total_outstanding: moneyOrZero(group.total_outstanding),
             aging_buckets: group.aging_buckets,
             invoices: group.invoices,
           }))
           .sort((left, right) => right.total_outstanding - left.total_outstanding);
 
         return jsonContent({
-          as_of: new Date(asOfSeconds * 1000).toISOString(),
+          as_of: isoInstantFromTimestamp(asOfSeconds),
           client_count: clientsPayload.length,
           invoice_count: clientsPayload.reduce((sum, client) => sum + client.invoice_count, 0),
-          total_outstanding: clientsPayload.reduce((sum, client) => sum + client.total_outstanding, 0),
+          total_outstanding: moneyOrZero(clientsPayload.reduce((sum, client) => sum + client.total_outstanding, 0)),
           aging_buckets: totals,
           clients: clientsPayload,
         });

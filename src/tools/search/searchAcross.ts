@@ -13,6 +13,7 @@ import {
 import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel, proposalStatusLabel } from "../../dolibarr/statusLabels.js";
+import { dolibarrId, isoDateFromTimestamp, money } from "../shared/normalization.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 const resultLimit = "10";
@@ -77,7 +78,7 @@ export function registerSearchAcross(server: McpServer): void {
 
         return prettyJsonContent({
           thirdparties: thirdparties.map((thirdparty) => ({
-            id: thirdparty.id,
+            id: dolibarrId(thirdparty.id),
             name: thirdparty.name,
             type: getThirdpartyType(thirdparty),
             is_client: getThirdpartyClientFlag(thirdparty) > 0,
@@ -90,51 +91,51 @@ export function registerSearchAcross(server: McpServer): void {
             zip: thirdparty.zip,
           })),
           invoices: invoices.map((invoice) => ({
-            id: invoice.id,
+            id: dolibarrId(invoice.id),
             ref: invoice.ref,
-            client_id: invoice.socid,
+            client_id: dolibarrId(invoice.socid),
             status: invoiceStatusLabel(invoice.statut),
             status_code: invoice.statut,
-            date: invoice.date,
-            due_date: invoice.date_lim_reglement,
-            total_ht: invoice.total_ht,
-            total_ttc: invoice.total_ttc,
+            date: isoDateFromTimestamp(invoice.date),
+            due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
+            total_ht: money(invoice.total_ht),
+            total_ttc: money(invoice.total_ttc),
           })),
           supplier_invoices: supplierInvoices.map((invoice) => {
             const supplierInvoice = invoice as SupplierInvoiceSearchResult;
             return {
-              id: invoice.id,
+              id: dolibarrId(invoice.id),
               ref: invoice.ref,
               supplier_ref: supplierInvoice.ref_supplier ?? supplierInvoice.refSupplier ?? supplierInvoice.supplier_ref,
-              supplier_id: invoice.socid,
+              supplier_id: dolibarrId(invoice.socid),
               status: invoiceStatusLabel(invoice.statut),
               status_code: invoice.statut,
-              date: invoice.date,
-              due_date: invoice.date_lim_reglement,
-              total_ht: invoice.total_ht,
-              total_ttc: invoice.total_ttc,
+              date: isoDateFromTimestamp(invoice.date),
+              due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
+              total_ht: money(invoice.total_ht),
+              total_ttc: money(invoice.total_ttc),
             };
           }),
           orders: orders.map((order) => ({
-            id: order.id,
+            id: dolibarrId(order.id),
             ref: order.ref,
-            client_id: order.socid,
+            client_id: dolibarrId(order.socid),
             status: orderStatusLabel(order.statut ?? order.status),
             status_code: order.statut ?? order.status,
-            date: order.date_commande ?? order.date,
-            total_ht: order.total_ht,
-            total_ttc: order.total_ttc,
+            date: isoDateFromTimestamp(order.date_commande ?? order.date),
+            total_ht: money(order.total_ht),
+            total_ttc: money(order.total_ttc),
           })),
           proposals: proposals.map((proposal) => ({
-            id: proposal.id,
+            id: dolibarrId(proposal.id),
             ref: proposal.ref,
-            client_id: proposal.socid,
+            client_id: dolibarrId(proposal.socid),
             status: proposalStatusLabel(proposal.statut),
             status_code: proposal.statut,
-            date: proposal.date,
-            valid_until: proposal.date_fin_validite,
-            total_ht: proposal.total_ht,
-            total_ttc: proposal.total_ttc,
+            date: isoDateFromTimestamp(proposal.date),
+            valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
+            total_ht: money(proposal.total_ht),
+            total_ttc: money(proposal.total_ttc),
           })),
         });
       } catch (err) {

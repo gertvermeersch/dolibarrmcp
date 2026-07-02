@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createSupplierInvoice, addSupplierInvoiceLine, validateSupplierInvoice } from "../../dolibarr/supplierInvoices.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 import { lineSchema } from "../shared/schemas.js";
 
@@ -38,7 +39,7 @@ export function registerCreateSupplierInvoice(server: McpServer): void {
           "success" in result
             ? {
                 success: true,
-                invoice_id: result.id,
+                invoice_id: dolibarrId(result.id),
                 supplier: result.thirdparty,
                 supplier_invoice_ref,
                 validated: result.validated,

@@ -6,12 +6,15 @@ import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
+import {
+  dolibarrId,
+  isoDateFromTimestamp,
+  isPaidInvoice,
+  money,
+  numberOrUndefined,
+  remainingToPay,
+} from "../shared/normalization.js";
 import type { DolibarrInvoice } from "../../types/dolibarr.js";
-
-function numberOrUndefined(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
 
 async function resolveInvoice(value: string): Promise<DolibarrInvoice | undefined> {
   const trimmed = value.trim();
@@ -52,33 +55,30 @@ export function registerGetInvoiceDetail(server: McpServer): void {
 
         const client = await getThirdparty(Number(invoice.socid));
         const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
-        const paid = invoice.statut === 2 || Number(rawInvoice.paye ?? 0) === 1;
+        const paid = isPaidInvoice(invoice);
         const amountPaid = numberOrUndefined(rawInvoice.totalpaid ?? rawInvoice.total_paye);
-        const remainingToPay =
-          numberOrUndefined(rawInvoice.remaintopay ?? rawInvoice.remaining_to_pay) ??
-          (amountPaid === undefined ? undefined : Number(invoice.total_ttc) - amountPaid);
 
         return jsonContent({
-          id: invoice.id,
+          id: dolibarrId(invoice.id),
           ref: invoice.ref,
           status: invoiceStatusLabel(invoice.statut),
           paid,
           payment: {
             paid,
-            amount_paid: amountPaid,
-            remaining_to_pay: remainingToPay,
+            amount_paid: money(amountPaid),
+            remaining_to_pay: remainingToPay(invoice),
           },
           dates: {
-            invoice: invoice.date,
-            due: invoice.date_lim_reglement,
+            invoice: isoDateFromTimestamp(invoice.date),
+            due: isoDateFromTimestamp(invoice.date_lim_reglement),
           },
           totals: {
-            total_ht: invoice.total_ht,
-            total_tva: invoice.total_tva,
-            total_ttc: invoice.total_ttc,
+            total_ht: money(invoice.total_ht),
+            total_tva: money(invoice.total_tva),
+            total_ttc: money(invoice.total_ttc),
           },
           client: {
-            id: client.id,
+            id: dolibarrId(client.id),
             name: client.name,
             code_client: client.code_client,
             email: client.email,
@@ -89,16 +89,16 @@ export function registerGetInvoiceDetail(server: McpServer): void {
             vat_number: client.tva_intra,
           },
           lines: (invoice.lines ?? []).map((line) => ({
-            id: line.id,
-            product_id: line.fk_product,
+            id: dolibarrId(line.id),
+            product_id: line.fk_product === undefined ? undefined : dolibarrId(line.fk_product),
             product_ref: line.product_ref,
             label: line.product_label ?? line.desc,
             description: line.desc,
             qty: line.qty,
-            unit_price: line.subprice,
+            unit_price: money(line.subprice),
             vat_rate: line.tva_tx,
-            total_ht: line.total_ht,
-            total_ttc: line.total_ttc,
+            total_ht: money(line.total_ht),
+            total_ttc: money(line.total_ttc),
           })),
         });
       } catch (err) {

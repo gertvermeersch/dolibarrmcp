@@ -5,23 +5,18 @@ import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
+import {
+  dolibarrId,
+  isoDateFromTimestamp,
+  money,
+  moneyOrZero,
+  numberOrUndefined,
+  numberOrZero,
+} from "../shared/normalization.js";
 import type { DolibarrInvoice } from "../../types/dolibarr.js";
 
 const revenueStatuses = new Set([1, 2]);
 const pageSize = 100;
-
-function numberOrUndefined(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-function numberOrZero(value: unknown): number {
-  return numberOrUndefined(value) ?? 0;
-}
-
-function roundCurrency(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
 
 function dateOnly(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -107,22 +102,22 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
           invoice_count: invoices.length,
           status_counts: statusCounts,
           totals: {
-            total_ht: roundCurrency(totals.total_ht),
-            total_tva: roundCurrency(totals.total_tva),
-            total_ttc: roundCurrency(totals.total_ttc),
+            total_ht: moneyOrZero(totals.total_ht),
+            total_tva: moneyOrZero(totals.total_tva),
+            total_ttc: moneyOrZero(totals.total_ttc),
           },
         };
 
         return jsonContent(include_invoices ? {
           ...response,
           invoices: invoices.map((invoice) => ({
-            id: invoice.id,
+            id: dolibarrId(invoice.id),
             ref: invoice.ref,
             status: invoiceStatusLabel(invoice.statut),
-            date: invoice.date,
-            total_ht: numberOrZero(invoice.total_ht),
-            total_tva: numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht),
-            total_ttc: numberOrZero(invoice.total_ttc),
+            date: isoDateFromTimestamp(invoice.date),
+            total_ht: moneyOrZero(invoice.total_ht),
+            total_tva: money(numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht)),
+            total_ttc: moneyOrZero(invoice.total_ttc),
           })),
         } : response);
       } catch (err) {

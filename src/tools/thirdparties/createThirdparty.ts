@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createThirdparty } from "../../dolibarr/thirdparties.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerCreateThirdparty(server: McpServer): void {
@@ -34,7 +35,7 @@ export function registerCreateThirdparty(server: McpServer): void {
           town,
           tva_intra: vat_number,
         });
-        return jsonContent({ success: true, id, name });
+        return jsonContent({ success: true, id: dolibarrId(id), name });
       } catch (err) {
         return jsonContent(toApiError(err));
       }

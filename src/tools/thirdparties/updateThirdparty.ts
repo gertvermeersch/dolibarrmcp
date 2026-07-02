@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { updateThirdparty } from "../../dolibarr/thirdparties.js";
 import { resolveThirdparty } from "../../resolvers/thirdparty.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerUpdateThirdparty(server: McpServer): void {
@@ -38,7 +39,7 @@ export function registerUpdateThirdparty(server: McpServer): void {
           tva_intra: vat_number,
         });
 
-        return jsonContent({ success: true, id: resolved.id, name: updated.name });
+        return jsonContent({ success: true, id: dolibarrId(resolved.id), name: updated.name });
       } catch (err) {
         return jsonContent(toApiError(err));
       }

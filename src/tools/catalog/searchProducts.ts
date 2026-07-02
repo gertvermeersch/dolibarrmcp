@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchProducts } from "../../dolibarr/products.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId, money } from "../shared/normalization.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 export function registerSearchProducts(server: McpServer): void {
@@ -15,10 +16,10 @@ export function registerSearchProducts(server: McpServer): void {
       try {
         const products = await searchProducts(query);
         return prettyJsonContent(products.map((p) => ({
-          id: p.id,
+          id: dolibarrId(p.id),
           ref: p.ref,
           label: p.label,
-          price: p.price,
+          price: money(p.price),
           vat_rate: p.tva_tx,
           type: p.type === 1 ? "service" : "product",
         })));

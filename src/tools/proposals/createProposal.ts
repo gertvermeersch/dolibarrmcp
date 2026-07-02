@@ -3,6 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createProposal, addProposalLine, validateProposal } from "../../dolibarr/proposals.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 import { lineSchema } from "../shared/schemas.js";
 
@@ -36,7 +37,7 @@ export function registerCreateProposal(server: McpServer): void {
           "success" in result
             ? {
                 success: true,
-                proposal_id: result.id,
+                proposal_id: dolibarrId(result.id),
                 client: result.thirdparty,
                 validated: result.validated,
                 lines: result.lines,

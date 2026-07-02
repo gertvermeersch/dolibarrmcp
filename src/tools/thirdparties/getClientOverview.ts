@@ -14,31 +14,19 @@ import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel } from "../../dolibarr/statusLabels.js";
 import { resolveThirdparty } from "../../resolvers/thirdparty.js";
 import type { DolibarrContact, DolibarrInvoice, DolibarrOrder } from "../../types/dolibarr.js";
+import {
+  country,
+  dolibarrId,
+  isoDateFromTimestamp,
+  money,
+  moneyOrZero,
+  numberOrUndefined,
+  remainingToPay,
+} from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 
-function numberOrUndefined(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
-
-function isPaid(invoice: DolibarrInvoice): boolean {
-  const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
-  return Number(invoice.statut) === 2 || Number(rawInvoice.paye ?? 0) === 1;
-}
-
-function remainingToPay(invoice: DolibarrInvoice): number {
-  if (isPaid(invoice)) return 0;
-
-  const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
-  const explicitRemaining = numberOrUndefined(rawInvoice.remaintopay ?? rawInvoice.remaining_to_pay);
-  if (explicitRemaining !== undefined) return explicitRemaining;
-
-  const amountPaid = numberOrUndefined(rawInvoice.totalpaid ?? rawInvoice.total_paye) ?? 0;
-  return Math.max(0, Number(invoice.total_ttc) - amountPaid);
-}
-
 function isOpenInvoice(invoice: DolibarrInvoice): boolean {
-  return Number(invoice.statut) === 1 && !isPaid(invoice);
+  return Number(invoice.statut) === 1 && remainingToPay(invoice) > 0;
 }
 
 function contactName(contact: DolibarrContact): string | undefined {
@@ -99,11 +87,11 @@ export function registerGetClientOverview(server: McpServer): void {
           listLastClientOrder(resolvedClient.id),
         ]);
         const openInvoices = invoices.filter(isOpenInvoice);
-        const unpaidBalance = openInvoices.reduce((sum, invoice) => sum + remainingToPay(invoice), 0);
+        const unpaidBalance = moneyOrZero(openInvoices.reduce((sum, invoice) => sum + remainingToPay(invoice), 0));
 
         return jsonContent({
           client: {
-            id: thirdparty.id,
+            id: dolibarrId(thirdparty.id),
             name: thirdparty.name,
             type: getThirdpartyType(thirdparty),
             is_client: getThirdpartyClientFlag(thirdparty) > 0,
@@ -113,16 +101,16 @@ export function registerGetClientOverview(server: McpServer): void {
             code_client: thirdparty.code_client,
             code_supplier: thirdparty.code_fournisseur,
             vat_number: thirdparty.tva_intra,
-            outstanding_balance: thirdparty.outstanding_balance,
+            outstanding_balance: money(thirdparty.outstanding_balance),
             address: {
               street: thirdparty.address,
               zip: thirdparty.zip,
               town: thirdparty.town,
-              country_id: thirdparty.country_id,
+              country: country(thirdparty),
             },
           },
           contacts: contacts.map((contact) => ({
-            id: contact.id,
+            id: dolibarrId(contact.id),
             name: contactName(contact),
             firstname: contact.firstname,
             lastname: contact.lastname,
@@ -140,25 +128,25 @@ export function registerGetClientOverview(server: McpServer): void {
             count: openInvoices.length,
             unpaid_balance: unpaidBalance,
             invoices: openInvoices.map((invoice) => ({
-              id: invoice.id,
+              id: dolibarrId(invoice.id),
               ref: invoice.ref,
               status: invoiceStatusLabel(invoice.statut),
-              date: invoice.date,
-              due_date: invoice.date_lim_reglement,
-              total_ht: invoice.total_ht,
-              total_tva: invoice.total_tva,
-              total_ttc: invoice.total_ttc,
+              date: isoDateFromTimestamp(invoice.date),
+              due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
+              total_ht: money(invoice.total_ht),
+              total_tva: money(invoice.total_tva),
+              total_ttc: money(invoice.total_ttc),
               remaining_to_pay: remainingToPay(invoice),
             })),
           },
           last_order: lastOrder
             ? {
-              id: lastOrder.id,
+              id: dolibarrId(lastOrder.id),
               ref: lastOrder.ref,
               status: orderStatusLabel(lastOrder.statut ?? lastOrder.status),
-              date: orderDate(lastOrder),
-              total_ht: lastOrder.total_ht,
-              total_ttc: lastOrder.total_ttc,
+              date: isoDateFromTimestamp(orderDate(lastOrder)),
+              total_ht: money(lastOrder.total_ht),
+              total_ttc: money(lastOrder.total_ttc),
             }
             : null,
         });

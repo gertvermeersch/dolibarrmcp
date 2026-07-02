@@ -6,6 +6,14 @@ import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
+import {
+  dolibarrId,
+  isoDateFromTimestamp,
+  isPaidInvoice,
+  money,
+  numberOrUndefined,
+  remainingToPay,
+} from "../shared/normalization.js";
 import type { DolibarrInvoice, DolibarrInvoiceLine } from "../../types/dolibarr.js";
 
 type SupplierInvoice = DolibarrInvoice & {
@@ -19,11 +27,6 @@ type SupplierInvoiceLine = DolibarrInvoiceLine & {
   pu_ht?: number;
   vat_rate?: number;
 };
-
-function numberOrUndefined(value: unknown): number | undefined {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : undefined;
-}
 
 function supplierRef(invoice: SupplierInvoice): string | undefined {
   return invoice.ref_supplier ?? invoice.refSupplier ?? invoice.supplier_ref;
@@ -71,34 +74,31 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
 
         const supplier = await getThirdparty(Number(invoice.socid));
         const rawInvoice = invoice as SupplierInvoice & Record<string, unknown>;
-        const paid = invoice.statut === 2 || Number(rawInvoice.paye ?? 0) === 1;
+        const paid = isPaidInvoice(invoice);
         const amountPaid = numberOrUndefined(rawInvoice.totalpaid ?? rawInvoice.total_paye);
-        const remainingToPay =
-          numberOrUndefined(rawInvoice.remaintopay ?? rawInvoice.remaining_to_pay) ??
-          (amountPaid === undefined ? undefined : Number(invoice.total_ttc) - amountPaid);
 
         return jsonContent({
-          id: invoice.id,
+          id: dolibarrId(invoice.id),
           ref: invoice.ref,
           supplier_ref: supplierRef(rawInvoice),
           status: invoiceStatusLabel(invoice.statut),
           paid,
           payment: {
             paid,
-            amount_paid: amountPaid,
-            remaining_to_pay: remainingToPay,
+            amount_paid: money(amountPaid),
+            remaining_to_pay: remainingToPay(invoice),
           },
           dates: {
-            invoice: invoice.date,
-            due: invoice.date_lim_reglement,
+            invoice: isoDateFromTimestamp(invoice.date),
+            due: isoDateFromTimestamp(invoice.date_lim_reglement),
           },
           totals: {
-            total_ht: invoice.total_ht,
-            total_tva: invoice.total_tva,
-            total_ttc: invoice.total_ttc,
+            total_ht: money(invoice.total_ht),
+            total_tva: money(invoice.total_tva),
+            total_ttc: money(invoice.total_ttc),
           },
           supplier: {
-            id: supplier.id,
+            id: dolibarrId(supplier.id),
             name: supplier.name,
             code_supplier: supplier.code_fournisseur,
             email: supplier.email,
@@ -111,16 +111,16 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
           lines: (invoice.lines ?? []).map((line) => {
             const supplierLine = line as SupplierInvoiceLine;
             return {
-              id: line.id,
-              product_id: line.fk_product,
+              id: dolibarrId(line.id),
+              product_id: line.fk_product === undefined ? undefined : dolibarrId(line.fk_product),
               product_ref: line.product_ref,
               label: line.product_label ?? line.desc ?? supplierLine.description,
               description: line.desc ?? supplierLine.description,
               qty: line.qty,
-              unit_price: line.subprice ?? supplierLine.pu_ht,
+              unit_price: money(line.subprice ?? supplierLine.pu_ht),
               vat_rate: line.tva_tx ?? supplierLine.vat_rate,
-              total_ht: line.total_ht,
-              total_ttc: line.total_ttc,
+              total_ht: money(line.total_ht),
+              total_ttc: money(line.total_ttc),
             };
           }),
         });

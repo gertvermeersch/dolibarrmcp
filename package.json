@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "test:unit": "node --import tsx --test test/unit/*.test.ts",
     "test:integration": "node --import tsx test/integration/dolibarr-api.test.ts"
   },
   "dependencies": {

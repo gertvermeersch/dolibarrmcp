@@ -46,24 +46,24 @@ Generated from a project scan on 2026-05-20.
 
 ## Output normalization issues from initial testing
 
-- [ ] Normalize monetary values across all MCP tool outputs.
-  - [ ] Fix `get_outstanding_receivables` float precision noise; `total_outstanding` was observed as `3338.7900000000004`.
-  - [ ] Round displayed monetary sums to 2 decimal places, or switch internal accumulation to integer cents and format at the boundary.
-  - [ ] Pick one output convention for money values across every tool; avoid mixing numbers like `remaining_to_pay: 1887.6` with 8-decimal strings like `total_ttc: "1887.60000000"` in the same payload.
-- [ ] Normalize dates across all MCP tool outputs.
-  - [ ] Keep period-style fields such as `period` and `as_of` as ISO 8601 strings.
-  - [ ] Convert per-document fields such as invoice `date`, `due_date`, proposal dates, and order dates from raw Unix epochs to ISO strings.
-  - [ ] Drop raw epoch fields from tool payloads unless a tool has a specific machine-facing need for them.
-- [ ] Audit all tools for unresolved Dolibarr foreign keys.
-  - [ ] Fix `get_client_overview` leaking `country_id: "2"`; resolve countries to a stable code/name such as `BE` / `Belgium`.
-  - [ ] Check other outputs for raw IDs where a user-facing label, code, or resolved object is expected.
-- [ ] Normalize identifier types across tool outputs.
-  - [ ] Avoid ID drift such as `120` as a number in one tool and `"120"` as a string in another.
-  - [ ] Choose and document a consistent convention for Dolibarr IDs in MCP responses.
-- [ ] Add focused tests or snapshots for output normalization.
-  - [ ] Cover monetary rounding/formatting for receivables and revenue tools.
-  - [ ] Cover ISO date conversion in invoice, supplier invoice, proposal, order, overview, search, and receivables outputs.
-  - [ ] Cover FK resolution for client overview country fields and any similar fields found during the audit.
+- [x] Normalize monetary values across all MCP tool outputs.
+  - [x] Fix `get_outstanding_receivables` float precision noise; `total_outstanding` was observed as `3338.7900000000004`.
+  - [x] Round displayed monetary sums to 2 decimal places at the response boundary.
+  - [x] Use numeric money values across tool payloads; avoid mixing numbers like `remaining_to_pay: 1887.6` with 8-decimal strings like `total_ttc: "1887.60000000"` in the same payload.
+- [x] Normalize dates across all MCP tool outputs.
+  - [x] Keep period-style fields such as `period` and `as_of` as ISO 8601 strings.
+  - [x] Convert per-document fields such as invoice `date`, `due_date`, proposal dates, and order dates from raw Unix epochs to ISO strings.
+  - [x] Drop raw epoch fields from tool payloads unless a tool has a specific machine-facing need for them.
+- [x] Audit all tools for unresolved Dolibarr foreign keys.
+  - [x] Fix `get_client_overview` leaking `country_id: "2"`; resolve countries to a stable code/name such as `BE` / `Belgium`.
+  - [x] Check other outputs for raw IDs where a user-facing label, code, or resolved object is expected.
+- [x] Normalize identifier types across tool outputs.
+  - [x] Avoid ID drift such as `120` as a number in one tool and `"120"` as a string in another.
+  - [x] Use numeric Dolibarr IDs consistently in MCP responses.
+- [x] Add focused tests or snapshots for output normalization.
+  - [x] Cover monetary rounding/formatting.
+  - [x] Cover ISO date conversion.
+  - [x] Cover FK resolution for client overview country fields.
 
 ## Dolibarr API helpers to add
 

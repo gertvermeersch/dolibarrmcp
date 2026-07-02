@@ -7,6 +7,7 @@ import {
   searchThirdparties,
 } from "../../dolibarr/thirdparties.js";
 import { toApiError } from "../../dolibarr/client.js";
+import { dolibarrId } from "../shared/normalization.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 export function registerSearchThirdparties(server: McpServer): void {
@@ -26,7 +27,7 @@ export function registerSearchThirdparties(server: McpServer): void {
         const thirdparties = await searchThirdparties(query, kind);
 
         return prettyJsonContent(thirdparties.map((thirdparty) => ({
-          id: thirdparty.id,
+          id: dolibarrId(thirdparty.id),
           name: thirdparty.name,
           type: getThirdpartyType(thirdparty),
           is_client: getThirdpartyClientFlag(thirdparty) > 0,
