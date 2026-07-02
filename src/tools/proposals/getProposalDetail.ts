@@ -58,9 +58,9 @@ export function registerGetProposalDetail(server: McpServer): void {
             valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
           },
           totals: {
-            total_ht: money(proposal.total_ht),
-            total_tva: money(rawProposal.total_tva),
-            total_ttc: money(proposal.total_ttc),
+            total_excluding_tax: money(proposal.total_ht),
+            total_tax: money(rawProposal.total_tva),
+            total_including_tax: money(proposal.total_ttc),
           },
           client: {
             id: dolibarrId(client.id),
@@ -82,8 +82,8 @@ export function registerGetProposalDetail(server: McpServer): void {
             qty: line.qty,
             unit_price: money(line.subprice),
             vat_rate: line.tva_tx,
-            total_ht: money(line.total_ht),
-            total_ttc: money(line.total_ttc),
+            total_excluding_tax: money(line.total_ht),
+            total_including_tax: money(line.total_ttc),
           })),
         });
       } catch (err) {

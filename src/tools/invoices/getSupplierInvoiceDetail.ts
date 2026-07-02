@@ -93,9 +93,9 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
             due: isoDateFromTimestamp(invoice.date_lim_reglement),
           },
           totals: {
-            total_ht: money(invoice.total_ht),
-            total_tva: money(invoice.total_tva),
-            total_ttc: money(invoice.total_ttc),
+            total_excluding_tax: money(invoice.total_ht),
+            total_tax: money(invoice.total_tva),
+            total_including_tax: money(invoice.total_ttc),
           },
           supplier: {
             id: dolibarrId(supplier.id),
@@ -119,8 +119,8 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
               qty: line.qty,
               unit_price: money(line.subprice ?? supplierLine.pu_ht),
               vat_rate: line.tva_tx ?? supplierLine.vat_rate,
-              total_ht: money(line.total_ht),
-              total_ttc: money(line.total_ttc),
+              total_excluding_tax: money(line.total_ht),
+              total_including_tax: money(line.total_ttc),
             };
           }),
         });

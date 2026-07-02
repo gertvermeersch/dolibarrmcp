@@ -114,7 +114,7 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
             due_date?: string;
             days_overdue: number;
             aging_bucket: AgingBucketName;
-            total_ttc: number;
+            total_including_tax: number;
             remaining_to_pay: number;
           }>;
         }>();
@@ -151,7 +151,7 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
             due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
             days_overdue: overdueDays,
             aging_bucket: bucket,
-            total_ttc: moneyOrZero(invoice.total_ttc),
+            total_including_tax: moneyOrZero(invoice.total_ttc),
             remaining_to_pay: amount,
           });
         }

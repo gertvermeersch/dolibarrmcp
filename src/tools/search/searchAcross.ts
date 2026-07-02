@@ -98,8 +98,8 @@ export function registerSearchAcross(server: McpServer): void {
             status_code: invoice.statut,
             date: isoDateFromTimestamp(invoice.date),
             due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
-            total_ht: money(invoice.total_ht),
-            total_ttc: money(invoice.total_ttc),
+            total_excluding_tax: money(invoice.total_ht),
+            total_including_tax: money(invoice.total_ttc),
           })),
           supplier_invoices: supplierInvoices.map((invoice) => {
             const supplierInvoice = invoice as SupplierInvoiceSearchResult;
@@ -112,8 +112,8 @@ export function registerSearchAcross(server: McpServer): void {
               status_code: invoice.statut,
               date: isoDateFromTimestamp(invoice.date),
               due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
-              total_ht: money(invoice.total_ht),
-              total_ttc: money(invoice.total_ttc),
+              total_excluding_tax: money(invoice.total_ht),
+              total_including_tax: money(invoice.total_ttc),
             };
           }),
           orders: orders.map((order) => ({
@@ -123,8 +123,8 @@ export function registerSearchAcross(server: McpServer): void {
             status: orderStatusLabel(order.statut ?? order.status),
             status_code: order.statut ?? order.status,
             date: isoDateFromTimestamp(order.date_commande ?? order.date),
-            total_ht: money(order.total_ht),
-            total_ttc: money(order.total_ttc),
+            total_excluding_tax: money(order.total_ht),
+            total_including_tax: money(order.total_ttc),
           })),
           proposals: proposals.map((proposal) => ({
             id: dolibarrId(proposal.id),
@@ -134,8 +134,8 @@ export function registerSearchAcross(server: McpServer): void {
             status_code: proposal.statut,
             date: isoDateFromTimestamp(proposal.date),
             valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
-            total_ht: money(proposal.total_ht),
-            total_ttc: money(proposal.total_ttc),
+            total_excluding_tax: money(proposal.total_ht),
+            total_including_tax: money(proposal.total_ttc),
           })),
         });
       } catch (err) {

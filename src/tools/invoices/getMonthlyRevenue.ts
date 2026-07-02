@@ -102,9 +102,9 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
           invoice_count: invoices.length,
           status_counts: statusCounts,
           totals: {
-            total_ht: moneyOrZero(totals.total_ht),
-            total_tva: moneyOrZero(totals.total_tva),
-            total_ttc: moneyOrZero(totals.total_ttc),
+            total_excluding_tax: moneyOrZero(totals.total_ht),
+            total_tax: moneyOrZero(totals.total_tva),
+            total_including_tax: moneyOrZero(totals.total_ttc),
           },
         };
 
@@ -115,9 +115,9 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
             ref: invoice.ref,
             status: invoiceStatusLabel(invoice.statut),
             date: isoDateFromTimestamp(invoice.date),
-            total_ht: moneyOrZero(invoice.total_ht),
-            total_tva: money(numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht)),
-            total_ttc: moneyOrZero(invoice.total_ttc),
+            total_excluding_tax: moneyOrZero(invoice.total_ht),
+            total_tax: money(numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht)),
+            total_including_tax: moneyOrZero(invoice.total_ttc),
           })),
         } : response);
       } catch (err) {

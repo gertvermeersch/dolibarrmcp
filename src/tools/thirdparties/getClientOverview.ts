@@ -133,9 +133,9 @@ export function registerGetClientOverview(server: McpServer): void {
               status: invoiceStatusLabel(invoice.statut),
               date: isoDateFromTimestamp(invoice.date),
               due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
-              total_ht: money(invoice.total_ht),
-              total_tva: money(invoice.total_tva),
-              total_ttc: money(invoice.total_ttc),
+              total_excluding_tax: money(invoice.total_ht),
+              total_tax: money(invoice.total_tva),
+              total_including_tax: money(invoice.total_ttc),
               remaining_to_pay: remainingToPay(invoice),
             })),
           },
@@ -145,8 +145,8 @@ export function registerGetClientOverview(server: McpServer): void {
               ref: lastOrder.ref,
               status: orderStatusLabel(lastOrder.statut ?? lastOrder.status),
               date: isoDateFromTimestamp(orderDate(lastOrder)),
-              total_ht: money(lastOrder.total_ht),
-              total_ttc: money(lastOrder.total_ttc),
+              total_excluding_tax: money(lastOrder.total_ht),
+              total_including_tax: money(lastOrder.total_ttc),
             }
             : null,
         });

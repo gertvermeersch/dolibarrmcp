@@ -49,7 +49,7 @@ Generated from a project scan on 2026-05-20.
 - [x] Normalize monetary values across all MCP tool outputs.
   - [x] Fix `get_outstanding_receivables` float precision noise; `total_outstanding` was observed as `3338.7900000000004`.
   - [x] Round displayed monetary sums to 2 decimal places at the response boundary.
-  - [x] Use numeric money values across tool payloads; avoid mixing numbers like `remaining_to_pay: 1887.6` with 8-decimal strings like `total_ttc: "1887.60000000"` in the same payload.
+  - [x] Use numeric money values across tool payloads; avoid mixing numbers like `remaining_to_pay: 1887.6` with 8-decimal strings like `total_including_tax: "1887.60000000"` in the same payload.
 - [x] Normalize dates across all MCP tool outputs.
   - [x] Keep period-style fields such as `period` and `as_of` as ISO 8601 strings.
   - [x] Convert per-document fields such as invoice `date`, `due_date`, proposal dates, and order dates from raw Unix epochs to ISO strings.
