@@ -3,15 +3,9 @@ import { listInvoices } from "../../dolibarr/invoices.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
 import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import type { DolibarrInvoice, DolibarrThirdparty } from "../../types/dolibarr.js";
-
-const invoiceStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "paid",
-  3: "abandoned",
-};
 
 const agingBucketNames = ["0-30", "31-60", "61-90", "90+"] as const;
 type AgingBucketName = typeof agingBucketNames[number];
@@ -165,7 +159,7 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
           group.invoices.push({
             id: invoice.id,
             ref: invoice.ref,
-            status: invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut),
+            status: invoiceStatusLabel(invoice.statut) ?? "unknown",
             date: invoice.date,
             due_date: invoice.date_lim_reglement,
             days_overdue: overdueDays,

@@ -12,6 +12,7 @@ import {
 } from "../../dolibarr/thirdparties.js";
 import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel, orderStatusLabel, proposalStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
 
 const resultLimit = "10";
@@ -92,7 +93,8 @@ export function registerSearchAcross(server: McpServer): void {
             id: invoice.id,
             ref: invoice.ref,
             client_id: invoice.socid,
-            status: invoice.statut,
+            status: invoiceStatusLabel(invoice.statut),
+            status_code: invoice.statut,
             date: invoice.date,
             due_date: invoice.date_lim_reglement,
             total_ht: invoice.total_ht,
@@ -105,7 +107,8 @@ export function registerSearchAcross(server: McpServer): void {
               ref: invoice.ref,
               supplier_ref: supplierInvoice.ref_supplier ?? supplierInvoice.refSupplier ?? supplierInvoice.supplier_ref,
               supplier_id: invoice.socid,
-              status: invoice.statut,
+              status: invoiceStatusLabel(invoice.statut),
+              status_code: invoice.statut,
               date: invoice.date,
               due_date: invoice.date_lim_reglement,
               total_ht: invoice.total_ht,
@@ -116,7 +119,8 @@ export function registerSearchAcross(server: McpServer): void {
             id: order.id,
             ref: order.ref,
             client_id: order.socid,
-            status: order.statut ?? order.status,
+            status: orderStatusLabel(order.statut ?? order.status),
+            status_code: order.statut ?? order.status,
             date: order.date_commande ?? order.date,
             total_ht: order.total_ht,
             total_ttc: order.total_ttc,
@@ -125,7 +129,8 @@ export function registerSearchAcross(server: McpServer): void {
             id: proposal.id,
             ref: proposal.ref,
             client_id: proposal.socid,
-            status: proposal.statut,
+            status: proposalStatusLabel(proposal.statut),
+            status_code: proposal.statut,
             date: proposal.date,
             valid_until: proposal.date_fin_validite,
             total_ht: proposal.total_ht,

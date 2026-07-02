@@ -4,15 +4,9 @@ import { getInvoice, listInvoices } from "../../dolibarr/invoices.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
 import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import type { DolibarrInvoice } from "../../types/dolibarr.js";
-
-const invoiceStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "paid",
-  3: "abandoned",
-};
 
 function numberOrUndefined(value: unknown): number | undefined {
   const number = Number(value);
@@ -67,7 +61,7 @@ export function registerGetInvoiceDetail(server: McpServer): void {
         return jsonContent({
           id: invoice.id,
           ref: invoice.ref,
-          status: invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut),
+          status: invoiceStatusLabel(invoice.statut),
           paid,
           payment: {
             paid,

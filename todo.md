@@ -44,15 +44,36 @@ Generated from a project scan on 2026-05-20.
   - [x] Current code uses `/proposals/{id}/line`.
   - [x] Verified on 2026-07-02: this Dolibarr version supports both `/proposals/{id}/line` and `/proposals/{id}/lines` for adding lines.
 
+## Output normalization issues from initial testing
+
+- [ ] Normalize monetary values across all MCP tool outputs.
+  - [ ] Fix `get_outstanding_receivables` float precision noise; `total_outstanding` was observed as `3338.7900000000004`.
+  - [ ] Round displayed monetary sums to 2 decimal places, or switch internal accumulation to integer cents and format at the boundary.
+  - [ ] Pick one output convention for money values across every tool; avoid mixing numbers like `remaining_to_pay: 1887.6` with 8-decimal strings like `total_ttc: "1887.60000000"` in the same payload.
+- [ ] Normalize dates across all MCP tool outputs.
+  - [ ] Keep period-style fields such as `period` and `as_of` as ISO 8601 strings.
+  - [ ] Convert per-document fields such as invoice `date`, `due_date`, proposal dates, and order dates from raw Unix epochs to ISO strings.
+  - [ ] Drop raw epoch fields from tool payloads unless a tool has a specific machine-facing need for them.
+- [ ] Audit all tools for unresolved Dolibarr foreign keys.
+  - [ ] Fix `get_client_overview` leaking `country_id: "2"`; resolve countries to a stable code/name such as `BE` / `Belgium`.
+  - [ ] Check other outputs for raw IDs where a user-facing label, code, or resolved object is expected.
+- [ ] Normalize identifier types across tool outputs.
+  - [ ] Avoid ID drift such as `120` as a number in one tool and `"120"` as a string in another.
+  - [ ] Choose and document a consistent convention for Dolibarr IDs in MCP responses.
+- [ ] Add focused tests or snapshots for output normalization.
+  - [ ] Cover monetary rounding/formatting for receivables and revenue tools.
+  - [ ] Cover ISO date conversion in invoice, supplier invoice, proposal, order, overview, search, and receivables outputs.
+  - [ ] Cover FK resolution for client overview country fields and any similar fields found during the audit.
+
 ## Dolibarr API helpers to add
 
-- [ ] Add delete helpers for client invoices and supplier invoices so integration tests can clean up created records.
+- [x] Add delete helpers for client invoices and supplier invoices so integration tests can clean up created records.
 - [x] Add get/list helpers for supplier invoices to support verification after creation.
 - [x] Add a contacts helper for `GET /thirdparties/{id}/contacts`.
 - [x] Add an orders helper if `get_client_overview` or `search_across` needs last order/search results.
-- [ ] Add shared status-label helpers for invoices and proposals instead of duplicating status maps inside tools.
-- [ ] Add request timeout handling in `src/dolibarr/client.ts`.
-- [ ] Add basic request/tool logging for startup, tool calls, and Dolibarr API errors.
+- [x] Add shared status-label helpers for invoices and proposals instead of duplicating status maps inside tools.
+- [x] Add request timeout handling in `src/dolibarr/client.ts`.
+- [x] Add basic request/tool logging for startup, tool calls, and Dolibarr API errors.
 
 ## Integration tests for the real Dolibarr API
 

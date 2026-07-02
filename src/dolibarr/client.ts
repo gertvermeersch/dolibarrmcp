@@ -51,7 +51,7 @@ function logDolibarrResponse(
   durationMs: number,
   text: string,
 ): void {
-  if (!config.dolibarrDebug) return;
+  if (!config.dolibarrDebug && status < 400) return;
 
   const log = status >= 400 ? console.error : console.log;
   log("[dolibarr] <-", `${method} ${path}`, {
@@ -68,8 +68,6 @@ function logDolibarrFetchError(
   durationMs: number,
   err: unknown,
 ): void {
-  if (!config.dolibarrDebug) return;
-
   console.error("[dolibarr] !!", `${method} ${path}`, {
     durationMs: Math.round(durationMs),
     error: err instanceof Error ? err.message : err,
@@ -87,6 +85,8 @@ async function request<T>(
   logDolibarrRequest(method, path, url, bodyText);
 
   let res: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.dolibarrRequestTimeoutMs);
   try {
     res = await fetch(url, {
       method,
@@ -96,13 +96,38 @@ async function request<T>(
         "Accept": "application/json",
       },
       body: bodyText,
+      signal: controller.signal,
     });
   } catch (err) {
+    clearTimeout(timeout);
     logDolibarrFetchError(method, path, performance.now() - start, err);
+    if (controller.signal.aborted) {
+      throw new DolibarrApiError(
+        408,
+        `Dolibarr API request timed out after ${config.dolibarrRequestTimeoutMs}ms`,
+        path,
+      );
+    }
     throw err;
   }
 
-  const text = await res.text().catch(() => res.statusText);
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (err) {
+    logDolibarrFetchError(method, path, performance.now() - start, err);
+    if (controller.signal.aborted) {
+      throw new DolibarrApiError(
+        408,
+        `Dolibarr API request timed out after ${config.dolibarrRequestTimeoutMs}ms`,
+        path,
+      );
+    }
+    text = res.statusText;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   logDolibarrResponse(method, path, res.status, res.statusText, performance.now() - start, text);
 
   if (!res.ok) {

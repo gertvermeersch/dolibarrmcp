@@ -32,6 +32,51 @@ const corsHeaders = {
 // the request/response lifecycle for its session until the client disconnects.
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
+function jsonRpcMessages(body: unknown): Array<Record<string, unknown>> {
+  if (Array.isArray(body)) {
+    return body.filter((message): message is Record<string, unknown> => (
+      Boolean(message) && typeof message === "object"
+    ));
+  }
+
+  if (body && typeof body === "object") {
+    return [body as Record<string, unknown>];
+  }
+
+  return [];
+}
+
+function logMcpRequest(req: IncomingMessage, body: unknown, sessionId?: string): void {
+  const messages = jsonRpcMessages(body);
+  const toolCalls = messages
+    .filter((message) => message.method === "tools/call")
+    .map((message) => {
+      const params = message.params;
+      if (!params || typeof params !== "object" || !("name" in params)) return "unknown";
+      return String(params.name);
+    });
+
+  if (toolCalls.length > 0) {
+    console.log("[mcp] tool_call", {
+      tools: toolCalls,
+      sessionId,
+    });
+    return;
+  }
+
+  const methods = messages
+    .map((message) => message.method)
+    .filter((method): method is string => typeof method === "string");
+
+  if (methods.length > 0) {
+    console.log("[mcp] request", {
+      method: req.method,
+      methods,
+      sessionId,
+    });
+  }
+}
+
 function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "dolibarr-mcp",
@@ -123,6 +168,7 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
 
     if (req.method === "POST") {
       body = await readJsonBody(req);
+      logMcpRequest(req, body, sessionIdValue);
     }
 
     const isInitializationRequest = req.method === "POST" && isInitializeRequest(body);
@@ -159,5 +205,10 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
 });
 
 httpServer.listen(config.httpPort, config.httpHost, () => {
-  console.log(`dolibarr-mcp listening on ${config.httpHost}:${config.httpPort}`);
+  console.log("dolibarr-mcp started", {
+    listen: `${config.httpHost}:${config.httpPort}`,
+    dolibarrUrl: config.dolibarrUrl,
+    dolibarrRequestTimeoutMs: config.dolibarrRequestTimeoutMs,
+    dolibarrDebug: config.dolibarrDebug,
+  });
 });

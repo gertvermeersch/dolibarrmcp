@@ -4,15 +4,9 @@ import { getSupplierInvoice, listSupplierInvoices } from "../../dolibarr/supplie
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
 import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import type { DolibarrInvoice, DolibarrInvoiceLine } from "../../types/dolibarr.js";
-
-const invoiceStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "paid",
-  3: "abandoned",
-};
 
 type SupplierInvoice = DolibarrInvoice & {
   ref_supplier?: string;
@@ -87,7 +81,7 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
           id: invoice.id,
           ref: invoice.ref,
           supplier_ref: supplierRef(rawInvoice),
-          status: invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut),
+          status: invoiceStatusLabel(invoice.statut),
           paid,
           payment: {
             paid,

@@ -30,3 +30,7 @@ export async function validateInvoice(
 ): Promise<void> {
   await dolibarr.post(`/invoices/${invoiceId}/validate`, { notrigger: options.notrigger ?? 0 });
 }
+
+export async function deleteInvoice(id: number): Promise<void> {
+  await dolibarr.delete<void>(`/invoices/${id}`);
+}

@@ -32,3 +32,7 @@ export async function addSupplierInvoiceLine(
 export async function validateSupplierInvoice(invoiceId: number): Promise<void> {
   await dolibarr.post(`/supplierinvoices/${invoiceId}/validate`, {});
 }
+
+export async function deleteSupplierInvoice(id: number): Promise<void> {
+  await dolibarr.delete<void>(`/supplierinvoices/${id}`);
+}

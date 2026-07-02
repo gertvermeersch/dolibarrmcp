@@ -3,15 +3,9 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { listInvoices } from "../../dolibarr/invoices.js";
 import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import type { DolibarrInvoice } from "../../types/dolibarr.js";
-
-const invoiceStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "paid",
-  3: "abandoned",
-};
 
 const revenueStatuses = new Set([1, 2]);
 const pageSize = 100;
@@ -98,7 +92,7 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
         );
 
         const statusCounts = invoices.reduce<Record<string, number>>((counts, invoice) => {
-          const status = invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut);
+          const status = invoiceStatusLabel(invoice.statut) ?? "unknown";
           counts[status] = (counts[status] ?? 0) + 1;
           return counts;
         }, {});
@@ -124,7 +118,7 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
           invoices: invoices.map((invoice) => ({
             id: invoice.id,
             ref: invoice.ref,
-            status: invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut),
+            status: invoiceStatusLabel(invoice.statut),
             date: invoice.date,
             total_ht: numberOrZero(invoice.total_ht),
             total_tva: numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht),

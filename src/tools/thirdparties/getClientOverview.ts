@@ -11,24 +11,10 @@ import {
 } from "../../dolibarr/thirdparties.js";
 import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
+import { invoiceStatusLabel, orderStatusLabel } from "../../dolibarr/statusLabels.js";
 import { resolveThirdparty } from "../../resolvers/thirdparty.js";
 import type { DolibarrContact, DolibarrInvoice, DolibarrOrder } from "../../types/dolibarr.js";
 import { jsonContent } from "../shared/responses.js";
-
-const invoiceStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "paid",
-  3: "abandoned",
-};
-
-const orderStatus: Record<number, string> = {
-  [-1]: "canceled",
-  0: "draft",
-  1: "validated",
-  2: "shipment_in_process",
-  3: "delivered",
-};
 
 function numberOrUndefined(value: unknown): number | undefined {
   const number = Number(value);
@@ -63,12 +49,6 @@ function contactName(contact: DolibarrContact): string | undefined {
 
 function orderDate(order: DolibarrOrder): number | undefined {
   return numberOrUndefined(order.date_commande ?? order.date);
-}
-
-function orderStatusLabel(order: DolibarrOrder): string | undefined {
-  const status = numberOrUndefined(order.statut ?? order.status);
-  if (status === undefined) return undefined;
-  return orderStatus[status] ?? String(status);
 }
 
 async function listClientInvoices(clientId: number): Promise<DolibarrInvoice[]> {
@@ -162,7 +142,7 @@ export function registerGetClientOverview(server: McpServer): void {
             invoices: openInvoices.map((invoice) => ({
               id: invoice.id,
               ref: invoice.ref,
-              status: invoiceStatus[Number(invoice.statut)] ?? String(invoice.statut),
+              status: invoiceStatusLabel(invoice.statut),
               date: invoice.date,
               due_date: invoice.date_lim_reglement,
               total_ht: invoice.total_ht,
@@ -175,7 +155,7 @@ export function registerGetClientOverview(server: McpServer): void {
             ? {
               id: lastOrder.id,
               ref: lastOrder.ref,
-              status: orderStatusLabel(lastOrder),
+              status: orderStatusLabel(lastOrder.statut ?? lastOrder.status),
               date: orderDate(lastOrder),
               total_ht: lastOrder.total_ht,
               total_ttc: lastOrder.total_ttc,

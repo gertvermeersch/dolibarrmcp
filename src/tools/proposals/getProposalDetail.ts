@@ -4,16 +4,9 @@ import { getProposal, listProposals } from "../../dolibarr/proposals.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
 import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
+import { proposalStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import type { DolibarrProposal } from "../../types/dolibarr.js";
-
-const proposalStatus: Record<number, string> = {
-  0: "draft",
-  1: "validated",
-  2: "accepted",
-  3: "refused",
-  4: "billed",
-};
 
 async function resolveProposal(value: string): Promise<DolibarrProposal | undefined> {
   const trimmed = value.trim();
@@ -58,7 +51,7 @@ export function registerGetProposalDetail(server: McpServer): void {
         return jsonContent({
           id: proposal.id,
           ref: proposal.ref,
-          status: proposalStatus[Number(proposal.statut)] ?? String(proposal.statut),
+          status: proposalStatusLabel(proposal.statut),
           dates: {
             proposal: proposal.date,
             valid_until: proposal.date_fin_validite,
