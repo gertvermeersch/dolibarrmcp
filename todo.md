@@ -104,16 +104,16 @@ Use `test/integration/dolibarr-api.test.ts` as the reference style: skip when `D
   - [x] `searchServices`
   - [x] `searchThirdparties`
   - [x] MCP tool formatting for `search_products`, `search_services`, and `search_thirdparties`
-- [ ] Add integration coverage for the remaining read tools once implemented.
-  - [ ] `get_client_overview`
-  - [ ] `get_outstanding_receivables`
-  - [ ] `get_monthly_revenue`
-  - [ ] `search_across`
-- [ ] Keep integration tests safe for local Dolibarr data.
-  - [ ] Prefix all created records with `MCP Integration`.
-  - [ ] Use unique names/refs.
-  - [ ] Avoid running against production.
-  - [ ] Surface cleanup errors with `AggregateError`, as the existing test does.
+- [x] Add integration coverage for the remaining read tools once implemented.
+  - [x] `get_client_overview`
+  - [x] `get_outstanding_receivables`
+  - [x] `get_monthly_revenue`
+  - [x] `search_across`
+- [x] Keep integration tests safe for local Dolibarr data.
+  - [x] Prefix all created records with `MCP Integration`.
+  - [x] Use unique names/refs.
+  - [x] Avoid running against production.
+  - [x] Surface cleanup errors with `AggregateError`, as the existing test does.
 
 ## Test and quality workflow
 

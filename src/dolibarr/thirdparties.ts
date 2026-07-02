@@ -1,4 +1,4 @@
-import { dolibarr, isDolibarrNotFoundError } from "./client.js";
+import { dolibarr, isDolibarrNotFoundError, type DolibarrRequestOptions } from "./client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrContact, DolibarrThirdparty } from "../types/dolibarr.js";
 
@@ -57,13 +57,18 @@ export async function searchThirdparties(
   }
 }
 
-export async function getThirdparty(id: number): Promise<DolibarrThirdparty> {
-  return dolibarr.get<DolibarrThirdparty>(`/thirdparties/${id}`);
+export async function getThirdparty(
+  id: number,
+  options: DolibarrRequestOptions = {},
+): Promise<DolibarrThirdparty> {
+  return dolibarr.get<DolibarrThirdparty>(`/thirdparties/${id}`, options);
 }
 
 export async function getThirdpartyContacts(id: number): Promise<DolibarrContact[]> {
   try {
-    return await dolibarr.get<DolibarrContact[]>(`/thirdparties/${id}/contacts`);
+    return await dolibarr.get<DolibarrContact[]>(`/thirdparties/${id}/contacts`, {
+      suppressErrorStatuses: [404],
+    });
   } catch (err) {
     if (isDolibarrNotFoundError(err)) return [];
     throw err;

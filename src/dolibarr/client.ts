@@ -3,6 +3,10 @@ import type { McpError } from "../types/tools.js";
 
 const debugBodyLimit = 4000;
 
+export type DolibarrRequestOptions = {
+  suppressErrorStatuses?: number[];
+};
+
 export class DolibarrApiError extends Error {
   constructor(
     public status: number,
@@ -50,10 +54,14 @@ function logDolibarrResponse(
   statusText: string,
   durationMs: number,
   text: string,
+  options: DolibarrRequestOptions = {},
 ): void {
+  const suppressErrorLog = status >= 400 && options.suppressErrorStatuses?.includes(status);
+  if (suppressErrorLog && !config.dolibarrDebug) return;
+
   if (!config.dolibarrDebug && status < 400) return;
 
-  const log = status >= 400 ? console.error : console.log;
+  const log = status >= 400 && !suppressErrorLog ? console.error : console.log;
   log("[dolibarr] <-", `${method} ${path}`, {
     status,
     statusText,
@@ -78,6 +86,7 @@ async function request<T>(
   method: string,
   path: string,
   body?: unknown,
+  options: DolibarrRequestOptions = {},
 ): Promise<T> {
   const url = `${config.dolibarrUrl}${path}`;
   const bodyText = body !== undefined ? JSON.stringify(body) : undefined;
@@ -128,7 +137,7 @@ async function request<T>(
     clearTimeout(timeout);
   }
 
-  logDolibarrResponse(method, path, res.status, res.statusText, performance.now() - start, text);
+  logDolibarrResponse(method, path, res.status, res.statusText, performance.now() - start, text, options);
 
   if (!res.ok) {
     throw new DolibarrApiError(
@@ -146,10 +155,10 @@ async function request<T>(
 }
 
 export const dolibarr = {
-  get: <T>(path: string) => request<T>("GET", path),
-  post: <T>(path: string, body: unknown) => request<T>("POST", path, body),
-  put: <T>(path: string, body: unknown) => request<T>("PUT", path, body),
-  delete: <T>(path: string) => request<T>("DELETE", path),
+  get: <T>(path: string, options?: DolibarrRequestOptions) => request<T>("GET", path, undefined, options),
+  post: <T>(path: string, body: unknown, options?: DolibarrRequestOptions) => request<T>("POST", path, body, options),
+  put: <T>(path: string, body: unknown, options?: DolibarrRequestOptions) => request<T>("PUT", path, body, options),
+  delete: <T>(path: string, options?: DolibarrRequestOptions) => request<T>("DELETE", path, undefined, options),
 };
 
 export function isDolibarrNotFoundError(err: unknown): boolean {

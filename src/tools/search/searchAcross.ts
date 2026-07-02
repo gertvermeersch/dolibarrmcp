@@ -72,7 +72,7 @@ export function registerSearchAcross(server: McpServer): void {
         const [invoices, supplierInvoices, orders, proposals] = await Promise.all([
           optionalSearch(() => listInvoices(searchParams)),
           optionalSearch(() => listSupplierInvoices(searchParams)),
-          optionalSearch(() => listOrders(searchParams)),
+          optionalSearch(() => listOrders(searchParams, { suppressErrorStatuses: [403, 404] })),
           optionalSearch(() => listProposals(searchParams)),
         ]);
 

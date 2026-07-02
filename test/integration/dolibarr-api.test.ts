@@ -5,9 +5,39 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { DolibarrProduct } from "../../src/types/dolibarr.js";
 
 const hasDolibarrCredentials = Boolean(process.env.DOLIBARR_URL && process.env.DOLIBARR_API_KEY);
+const testRecordPrefix = "MCP Integration";
+const allowProductionIntegrationTests = process.env.DOLIBARR_ALLOW_PRODUCTION_INTEGRATION_TESTS === "true";
 
 if (!process.env.MCP_API_KEY) {
   process.env.MCP_API_KEY = "integration-test";
+}
+
+function looksLikeProductionDolibarrUrl(url: string | undefined): boolean {
+  if (!url) return false;
+
+  try {
+    const parsed = new URL(url);
+    const parts = [parsed.hostname, parsed.pathname]
+      .join(" ")
+      .split(/[^a-z0-9]+/i)
+      .filter(Boolean);
+
+    return parts.some((part) => ["prod", "production", "live"].includes(part.toLowerCase()));
+  } catch {
+    return /\b(prod|production|live)\b/i.test(url);
+  }
+}
+
+function integrationTestSkipReason(): false | string {
+  if (!hasDolibarrCredentials) {
+    return "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.";
+  }
+
+  if (!allowProductionIntegrationTests && looksLikeProductionDolibarrUrl(process.env.DOLIBARR_URL)) {
+    return "DOLIBARR_URL looks production-like. Point tests at a development Dolibarr instance, or set DOLIBARR_ALLOW_PRODUCTION_INTEGRATION_TESTS=true to override intentionally.";
+  }
+
+  return false;
 }
 
 async function loadApi() {
@@ -22,18 +52,26 @@ async function loadApi() {
     ...(await import("../../src/tools/catalog/searchProducts.js")),
     ...(await import("../../src/tools/catalog/searchServices.js")),
     ...(await import("../../src/tools/invoices/getInvoiceDetail.js")),
+    ...(await import("../../src/tools/invoices/getMonthlyRevenue.js")),
+    ...(await import("../../src/tools/invoices/getOutstandingReceivables.js")),
     ...(await import("../../src/tools/invoices/getSupplierInvoiceDetail.js")),
     ...(await import("../../src/tools/proposals/setProposalStatus.js")),
+    ...(await import("../../src/tools/search/searchAcross.js")),
+    ...(await import("../../src/tools/thirdparties/getClientOverview.js")),
     ...(await import("../../src/tools/thirdparties/searchThirdparties.js")),
   };
 }
 
-function uniqueName(prefix: string): string {
-  return `${prefix} ${new Date().toISOString()} ${Math.random().toString(36).slice(2, 8)}`;
+function integrationLabel(label: string): string {
+  return `${testRecordPrefix} ${label}`;
 }
 
-function uniqueRef(prefix: string): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+function uniqueName(label: string): string {
+  return `${integrationLabel(label)} ${new Date().toISOString()} ${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function uniqueRef(label: string): string {
+  return `${integrationLabel(label)} ${Date.now()} ${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function todayIsoDate(): string {
@@ -122,10 +160,10 @@ function throwWithCleanupErrors(testError: unknown, cleanupErrors: unknown[]): v
 }
 
 test("creates, reads, and deletes a thirdparty in the real Dolibarr API", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async () => {
   const { createThirdparty, deleteThirdparty, getThirdparty, isDolibarrNotFoundError } = await loadApi();
-  const name = uniqueName("MCP Integration Thirdparty");
+  const name = uniqueName("Thirdparty");
   const id = await createThirdparty({
     name,
     client: 1,
@@ -142,17 +180,19 @@ test("creates, reads, and deletes a thirdparty in the real Dolibarr API", {
     assert.equal(created.name, name);
     assert.equal(Number(created.client), 1);
   } finally {
-    await deleteThirdparty(id);
+    const cleanupErrors: unknown[] = [];
+    await deleteThirdparty(id).catch((err: unknown) => cleanupErrors.push(err));
+    throwWithCleanupErrors(undefined, cleanupErrors);
   }
 
   await assert.rejects(
-    () => getThirdparty(id),
+    () => getThirdparty(id, { suppressErrorStatuses: [404] }),
     (err) => isDolibarrNotFoundError(err),
   );
 });
 
 test("creates and validates a proposal with an existing service line and a free-text line", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async (t) => {
   const {
     DocumentCreationService,
@@ -171,7 +211,7 @@ test("creates and validates a proposal with an existing service line and a free-
     return;
   }
 
-  const clientName = uniqueName("MCP Integration Proposal Client");
+  const clientName = uniqueName("Proposal Client");
   const clientId = await createThirdparty({
     name: clientName,
     client: 1,
@@ -237,20 +277,11 @@ test("creates and validates a proposal with an existing service line and a free-
     await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
   }
 
-  if (testError !== undefined) {
-    if (cleanupErrors.length > 0 && testError instanceof Error) {
-      Object.assign(testError, { cleanupErrors });
-    }
-    throw testError;
-  }
-
-  if (cleanupErrors.length > 0) {
-    throw new AggregateError(cleanupErrors, "Failed to clean up Dolibarr integration test records.");
-  }
+  throwWithCleanupErrors(testError, cleanupErrors);
 });
 
 test("creates, validates, reads, and deletes a client invoice in the real Dolibarr API", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async (t) => {
   const {
     DocumentCreationService,
@@ -270,7 +301,7 @@ test("creates, validates, reads, and deletes a client invoice in the real Doliba
     return;
   }
 
-  const clientName = uniqueName("MCP Integration Invoice Client");
+  const clientName = uniqueName("Invoice Client");
   const clientId = await createThirdparty({
     name: clientName,
     client: 1,
@@ -360,7 +391,7 @@ test("creates, validates, reads, and deletes a client invoice in the real Doliba
 });
 
 test("creates, validates, reads, and deletes a supplier invoice in the real Dolibarr API", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async () => {
   const {
     DocumentCreationService,
@@ -375,8 +406,8 @@ test("creates, validates, reads, and deletes a supplier invoice in the real Doli
     validateSupplierInvoice,
   } = await loadApi();
   const catalogService = await findPurchasableService(dolibarr);
-  const supplierInvoiceRef = uniqueRef("MCP-IT-SUPPLIER-INVOICE");
-  const supplierName = uniqueName("MCP Integration Supplier Invoice Supplier");
+  const supplierInvoiceRef = uniqueRef("Supplier Invoice");
+  const supplierName = uniqueName("Supplier Invoice Supplier");
   const supplierId = await createThirdparty({
     name: supplierName,
     client: 0,
@@ -478,7 +509,7 @@ test("creates, validates, reads, and deletes a supplier invoice in the real Doli
 });
 
 test("creates, validates, closes, and deletes a proposal in the real Dolibarr API", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async () => {
   const {
     DocumentCreationService,
@@ -491,7 +522,7 @@ test("creates, validates, closes, and deletes a proposal in the real Dolibarr AP
     registerSetProposalStatus,
     validateProposal,
   } = await loadApi();
-  const clientName = uniqueName("MCP Integration Proposal Status Client");
+  const clientName = uniqueName("Proposal Status Client");
   const clientId = await createThirdparty({
     name: clientName,
     client: 1,
@@ -560,7 +591,7 @@ test("creates, validates, closes, and deletes a proposal in the real Dolibarr AP
 });
 
 test("searches catalog products through API helpers and MCP formatting", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async (t) => {
   const {
     dolibarr,
@@ -597,7 +628,7 @@ test("searches catalog products through API helpers and MCP formatting", {
 });
 
 test("searches catalog services through API helpers and MCP formatting", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async (t) => {
   const {
     dolibarr,
@@ -634,7 +665,7 @@ test("searches catalog services through API helpers and MCP formatting", {
 });
 
 test("searches disposable thirdparties through API helpers and MCP formatting", {
-  skip: hasDolibarrCredentials ? false : "Set DOLIBARR_URL and DOLIBARR_API_KEY to run real API tests.",
+  skip: integrationTestSkipReason(),
 }, async () => {
   const {
     createThirdparty,
@@ -642,9 +673,9 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
     registerSearchThirdparties,
     searchThirdparties,
   } = await loadApi();
-  const searchToken = uniqueRef("MCP-IT-THIRDPARTY-SEARCH");
-  const clientName = `MCP Integration Search Client ${searchToken}`;
-  const supplierName = `MCP Integration Search Supplier ${searchToken}`;
+  const searchToken = uniqueRef("Thirdparty Search");
+  const clientName = `${integrationLabel("Search Client")} ${searchToken}`;
+  const supplierName = `${integrationLabel("Search Supplier")} ${searchToken}`;
 
   const clientId = await createThirdparty({
     name: clientName,
@@ -726,6 +757,145 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
   } finally {
     await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
     await deleteThirdparty(supplierId).catch((err: unknown) => cleanupErrors.push(err));
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+test("reads client overview, receivables, monthly revenue, and cross-search from a disposable invoice", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const {
+    DocumentCreationService,
+    addInvoiceLine,
+    createInvoice,
+    createThirdparty,
+    deleteInvoice,
+    deleteThirdparty,
+    getInvoice,
+    registerGetClientOverview,
+    registerGetMonthlyRevenue,
+    registerGetOutstandingReceivables,
+    registerSearchAcross,
+    validateInvoice,
+  } = await loadApi();
+  const searchToken = uniqueRef("Read Tools");
+  const clientName = `${integrationLabel("Read Tools Client")} ${searchToken}`;
+  const invoiceDate = todayIsoDate();
+  const [year, month] = invoiceDate.split("-").map(Number);
+  const clientId = await createThirdparty({
+    name: clientName,
+    client: 1,
+    supplier: 0,
+    email: `mcp-it-read-tools-${Date.now()}@example.test`,
+    town: "Integration Test",
+  });
+
+  let invoiceId: number | undefined;
+  let invoiceRef: string | undefined;
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const service = new DocumentCreationService({
+      create: createInvoice,
+      addLine: addInvoiceLine,
+      validate: validateInvoice,
+    });
+    const result = await service.create({
+      thirdparty: String(clientId),
+      date: invoiceDate,
+      validate: true,
+      lines: [{
+        description: `Integration test read-tools invoice ${searchToken}`,
+        qty: 1,
+        unit_price: 123.45,
+        vat_rate: 21,
+      }],
+    });
+
+    assert.equal("success" in result, true);
+    if (!("success" in result)) {
+      assert.fail(`Expected read-tools invoice creation success, got ${JSON.stringify(result)}`);
+    }
+
+    invoiceId = result.id;
+    assert.equal(result.validated, true);
+
+    const invoice = await getInvoice(invoiceId);
+    invoiceRef = invoice.ref;
+    assert.equal(Number(invoice.id), invoiceId);
+    assert.equal(Number(invoice.socid), clientId);
+    assert.ok(Number(invoice.statut) > 0, `Expected validated invoice status, got ${invoice.statut}`);
+
+    const clientOverview = await callJsonTool<Record<string, unknown>>(
+      registerGetClientOverview,
+      "get_client_overview",
+      { client: String(clientId) },
+    );
+    assert.equal((clientOverview.client as Record<string, unknown>).id, clientId);
+    assert.equal((clientOverview.client as Record<string, unknown>).name, clientName);
+    const overviewOpenInvoices = clientOverview.open_invoices as Record<string, unknown>;
+    assert.ok(Number(overviewOpenInvoices.count) >= 1);
+    assert.ok(
+      (overviewOpenInvoices.invoices as Array<Record<string, unknown>>).some((openInvoice) => openInvoice.id === invoiceId),
+      `Expected get_client_overview to include invoice ${invoiceRef}`,
+    );
+
+    const receivables = await callJsonTool<Record<string, unknown>>(
+      registerGetOutstandingReceivables,
+      "get_outstanding_receivables",
+      {},
+    );
+    assert.ok(Number(receivables.client_count) >= 1);
+    assert.ok(Number(receivables.invoice_count) >= 1);
+    assert.equal(typeof receivables.total_outstanding, "number");
+    const receivableClient = (receivables.clients as Array<Record<string, unknown>>)
+      .find((clientGroup) => (clientGroup.client as Record<string, unknown>).id === clientId);
+    assert.ok(receivableClient, `Expected get_outstanding_receivables to include client ${clientName}`);
+    assert.ok(
+      (receivableClient.invoices as Array<Record<string, unknown>>).some((openInvoice) => openInvoice.id === invoiceId),
+      `Expected get_outstanding_receivables to include invoice ${invoiceRef}`,
+    );
+
+    const monthlyRevenue = await callJsonTool<Record<string, unknown>>(
+      registerGetMonthlyRevenue,
+      "get_monthly_revenue",
+      { year, month, include_invoices: true },
+    );
+    assert.deepEqual(monthlyRevenue.period, {
+      year,
+      month,
+      start_date: `${invoiceDate.slice(0, 8)}01`,
+      exclusive_end_date: new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10),
+    });
+    assert.ok(Number(monthlyRevenue.invoice_count) >= 1);
+    assert.equal(typeof (monthlyRevenue.totals as Record<string, unknown>).total_including_tax, "number");
+    assert.ok(
+      (monthlyRevenue.invoices as Array<Record<string, unknown>>).some((monthlyInvoice) => monthlyInvoice.id === invoiceId),
+      `Expected get_monthly_revenue to include invoice ${invoiceRef}`,
+    );
+
+    const searchAcross = await callJsonTool<Record<string, unknown>>(
+      registerSearchAcross,
+      "search_across",
+      { query: searchToken },
+    );
+    assert.ok(
+      (searchAcross.thirdparties as Array<Record<string, unknown>>).some((thirdparty) => thirdparty.id === clientId),
+      `Expected search_across to include thirdparty ${clientName}`,
+    );
+    assert.ok(
+      (searchAcross.invoices as Array<Record<string, unknown>>).some((foundInvoice) => foundInvoice.id === invoiceId),
+      `Expected search_across to include invoice ${invoiceRef}`,
+    );
+  } catch (err) {
+    testError = err;
+  } finally {
+    if (invoiceId !== undefined) {
+      await deleteInvoice(invoiceId).catch((err: unknown) => cleanupErrors.push(err));
+    }
+    await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
   }
 
   throwWithCleanupErrors(testError, cleanupErrors);

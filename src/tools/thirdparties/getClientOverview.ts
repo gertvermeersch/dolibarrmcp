@@ -55,7 +55,7 @@ async function listLastClientOrder(clientId: number): Promise<DolibarrOrder | un
       sortfield: "t.date_commande,t.rowid",
       sortorder: "DESC,DESC",
       limit: "1",
-    }));
+    }), { suppressErrorStatuses: [403] });
 
     return orders[0];
   } catch (err) {
