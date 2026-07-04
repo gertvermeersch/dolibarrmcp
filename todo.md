@@ -75,6 +75,59 @@ Generated from a project scan on 2026-05-20.
 - [x] Add request timeout handling in `src/dolibarr/client.ts`.
 - [x] Add basic request/tool logging for startup, tool calls, and Dolibarr API errors.
 
+## CRUD coverage audit and plan
+
+Current MCP tool coverage, checked against `src/server.ts` on 2026-07-04:
+
+- [x] Thirdparties: create via `create_thirdparty`, read via `search_thirdparties` and `get_client_overview`, update via `update_thirdparty`; delete exists only as the internal `deleteThirdparty` cleanup helper.
+- [x] Client invoices: create via `create_invoice`, read via `get_invoice_detail`, `get_monthly_revenue`, and `get_outstanding_receivables`, lifecycle validation via `validate_invoice`; update is missing, delete exists only as the internal `deleteInvoice` cleanup helper.
+- [x] Supplier invoices: create via `create_supplier_invoice`, read via `get_supplier_invoice_detail`, lifecycle validation through the create tool; update is missing, delete exists only as the internal `deleteSupplierInvoice` cleanup helper.
+- [x] Proposals: create via `create_proposal`, read via `get_proposal_detail`, lifecycle changes via `validate_proposal` and `set_proposal_status`; update is missing, delete exists only as the internal `deleteProposal` cleanup helper.
+- [x] Catalog products/services: read via `search_products` and `search_services`; create, update, and delete are missing.
+- [x] Cross-domain search: `search_across` is intentionally read-only and does not need create/update/delete variants.
+
+Implementation plan:
+
+- [ ] Verify Dolibarr update endpoint shapes against the real development instance.
+  - [ ] Client invoice header update: confirm `PUT /invoices/{id}` fields and draft-only behavior.
+  - [ ] Client invoice line update: confirm `/invoices/{id}/lines/{lineid}` or equivalent endpoint support.
+  - [ ] Supplier invoice header update: confirm `PUT /supplierinvoices/{id}` fields and draft-only behavior.
+  - [ ] Supplier invoice line update: confirm supported line endpoint paths and required field names.
+  - [ ] Proposal header update: confirm `PUT /proposals/{id}` fields and draft/open status behavior.
+  - [ ] Proposal line update: confirm supported line endpoint paths and required field names.
+  - [ ] Catalog product/service update: confirm `PUT /products/{id}` payload requirements and service/product mode flags if catalog mutation is in scope.
+- [ ] Add missing Dolibarr API helpers after endpoint verification.
+  - [ ] Add `updateInvoice` and `updateInvoiceLine`.
+  - [ ] Add `updateSupplierInvoice` and `updateSupplierInvoiceLine`.
+  - [ ] Add `updateProposal` and `updateProposalLine`.
+  - [ ] Add catalog update helpers for products and services if catalog mutation is in scope.
+- [ ] Add MCP update tools.
+  - [ ] `update_invoice` for draft client invoice header fields and line edits.
+  - [ ] `update_supplier_invoice` for draft supplier invoice header fields and line edits.
+  - [ ] `update_proposal` for proposal header fields and line edits while Dolibarr allows mutation.
+  - [ ] `update_product` and `update_service` if catalog mutation is in scope.
+  - [ ] Keep lifecycle operations separate from update tools: validation, proposal acceptance/refusal, payments, and cancellation should remain explicit tools.
+- [ ] Expand integration tests for update coverage.
+  - [ ] Thirdparty test should exercise `create_thirdparty`, `search_thirdparties`/`get_client_overview`, `update_thirdparty`, and cleanup delete.
+  - [ ] Client invoice lifecycle should include draft update before validation, fetch after update, validation, and cleanup delete.
+  - [ ] Supplier invoice lifecycle should include draft update before validation, fetch after update, validation, and cleanup delete.
+  - [ ] Proposal lifecycle should include draft update before validation, fetch after update, validation/status change, and cleanup delete.
+  - [ ] Catalog tests should create or reuse a disposable product/service, update it, search/read it back, and clean it up if catalog mutation is implemented.
+- [ ] Update documentation once update support is implemented.
+  - [ ] Add a CRUD coverage table to `README.md`.
+  - [ ] Document which tools are lifecycle/status tools rather than plain updates.
+  - [ ] Document draft-only restrictions for document update tools.
+- [ ] Consider catalog create tools after update support is stable.
+  - [ ] `create_product` and `create_service`.
+- [ ] Decide the public MCP delete policy before exposing destructive tools.
+  - [ ] Prefer guarded deletes such as `delete_invoice`, `delete_supplier_invoice`, `delete_proposal`, and `delete_thirdparty` with an explicit `confirm: true` input.
+  - [ ] Refuse deletion of validated/posted business documents unless Dolibarr supports the operation safely and the tool explains the restriction in its error payload.
+  - [ ] Keep cleanup-only helpers internal if public delete tools are considered too risky.
+- [ ] Add delete API helpers and MCP tools only if the delete policy approves them.
+  - [ ] Add `deleteInvoiceLine`, `deleteSupplierInvoiceLine`, and `deleteProposalLine` if line deletion is safe and useful.
+  - [ ] Add `delete_product` and `delete_service` with explicit confirmation if catalog deletes are in scope.
+  - [ ] Public document/thirdparty delete tools only after the delete policy is settled.
+
 ## Integration tests for the real Dolibarr API
 
 Use `test/integration/dolibarr-api.test.ts` as the reference style: skip when `DOLIBARR_URL` or `DOLIBARR_API_KEY` is missing, create disposable records, verify through the API, and clean up in `finally`.
