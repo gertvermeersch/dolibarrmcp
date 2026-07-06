@@ -6,6 +6,8 @@ import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import {
+  cleanString,
+  compactObject,
   dolibarrId,
   isoDateFromTimestamp,
   isoInstantFromTimestamp,
@@ -158,13 +160,12 @@ export function registerGetOutstandingReceivables(server: McpServer): void {
 
         const clientsPayload = Array.from(clientsById.entries())
           .map(([clientId, group]) => ({
-            client: {
+            client: compactObject({
               id: clientId,
-              name: group.client?.name,
-              code_client: group.client?.code_client,
-              email: group.client?.email,
-              phone: group.client?.phone,
-            },
+              name: cleanString(group.client?.name),
+              email: cleanString(group.client?.email),
+              phone: cleanString(group.client?.phone),
+            }),
             invoice_count: group.invoice_count,
             total_outstanding: moneyOrZero(group.total_outstanding),
             aging_buckets: group.aging_buckets,

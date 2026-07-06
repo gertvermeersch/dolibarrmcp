@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchServices } from "../../dolibarr/products.js";
 import { toApiError } from "../../dolibarr/client.js";
-import { dolibarrId, money } from "../shared/normalization.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
+import { serializeCatalogItem } from "../shared/serializers.js";
 
 export function registerSearchServices(server: McpServer): void {
   server.registerTool(
@@ -15,14 +15,7 @@ export function registerSearchServices(server: McpServer): void {
     async ({ query }) => {
       try {
         const services = await searchServices(query);
-        return prettyJsonContent(services.map((s) => ({
-          id: dolibarrId(s.id),
-          ref: s.ref,
-          label: s.label,
-          price: money(s.price),
-          vat_rate: s.tva_tx,
-          type: "service",
-        })));
+        return prettyJsonContent(services.map(serializeCatalogItem));
       } catch (err) {
         return jsonContent(toApiError(err));
       }

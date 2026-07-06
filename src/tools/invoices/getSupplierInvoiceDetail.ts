@@ -14,18 +14,13 @@ import {
   numberOrUndefined,
   remainingToPay,
 } from "../shared/normalization.js";
-import type { DolibarrInvoice, DolibarrInvoiceLine } from "../../types/dolibarr.js";
+import { serializeLineItem, serializeThirdpartyIdentity } from "../shared/serializers.js";
+import type { DolibarrInvoice } from "../../types/dolibarr.js";
 
 type SupplierInvoice = DolibarrInvoice & {
   ref_supplier?: string;
   refSupplier?: string;
   supplier_ref?: string;
-};
-
-type SupplierInvoiceLine = DolibarrInvoiceLine & {
-  description?: string;
-  pu_ht?: number;
-  vat_rate?: number;
 };
 
 function supplierRef(invoice: SupplierInvoice): string | undefined {
@@ -97,32 +92,8 @@ export function registerGetSupplierInvoiceDetail(server: McpServer): void {
             total_tax: money(invoice.total_tva),
             total_including_tax: money(invoice.total_ttc),
           },
-          supplier: {
-            id: dolibarrId(supplier.id),
-            name: supplier.name,
-            code_supplier: supplier.code_fournisseur,
-            email: supplier.email,
-            phone: supplier.phone,
-            address: supplier.address,
-            zip: supplier.zip,
-            town: supplier.town,
-            vat_number: supplier.tva_intra,
-          },
-          lines: (invoice.lines ?? []).map((line) => {
-            const supplierLine = line as SupplierInvoiceLine;
-            return {
-              id: dolibarrId(line.id),
-              product_id: line.fk_product === undefined ? undefined : dolibarrId(line.fk_product),
-              product_ref: line.product_ref,
-              label: line.product_label ?? line.desc ?? supplierLine.description,
-              description: line.desc ?? supplierLine.description,
-              qty: line.qty,
-              unit_price: money(line.subprice ?? supplierLine.pu_ht),
-              vat_rate: line.tva_tx ?? supplierLine.vat_rate,
-              total_excluding_tax: money(line.total_ht),
-              total_including_tax: money(line.total_ttc),
-            };
-          }),
+          supplier: serializeThirdpartyIdentity(supplier),
+          lines: (invoice.lines ?? []).map(serializeLineItem),
         });
       } catch (err) {
         return jsonContent(toApiError(err));

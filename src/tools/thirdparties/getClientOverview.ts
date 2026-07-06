@@ -2,13 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { listInvoices } from "../../dolibarr/invoices.js";
 import { listOrders } from "../../dolibarr/orders.js";
-import {
-  getThirdparty,
-  getThirdpartyClientFlag,
-  getThirdpartyContacts,
-  getThirdpartySupplierFlag,
-  getThirdpartyType,
-} from "../../dolibarr/thirdparties.js";
+import { getThirdparty, getThirdpartyContacts } from "../../dolibarr/thirdparties.js";
 import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel } from "../../dolibarr/statusLabels.js";
@@ -16,6 +10,8 @@ import { resolveThirdparty } from "../../resolvers/thirdparty.js";
 import type { DolibarrContact, DolibarrInvoice, DolibarrOrder } from "../../types/dolibarr.js";
 import {
   country,
+  cleanString,
+  compactObject,
   dolibarrId,
   isoDateFromTimestamp,
   money,
@@ -24,6 +20,7 @@ import {
   remainingToPay,
 } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
+import { serializeThirdpartySummary } from "../shared/serializers.js";
 
 function isOpenInvoice(invoice: DolibarrInvoice): boolean {
   return Number(invoice.statut) === 1 && remainingToPay(invoice) > 0;
@@ -90,39 +87,31 @@ export function registerGetClientOverview(server: McpServer): void {
         const unpaidBalance = moneyOrZero(openInvoices.reduce((sum, invoice) => sum + remainingToPay(invoice), 0));
 
         return jsonContent({
-          client: {
-            id: dolibarrId(thirdparty.id),
-            name: thirdparty.name,
-            type: getThirdpartyType(thirdparty),
-            is_client: getThirdpartyClientFlag(thirdparty) > 0,
-            is_supplier: getThirdpartySupplierFlag(thirdparty) > 0,
-            email: thirdparty.email,
-            phone: thirdparty.phone,
-            code_client: thirdparty.code_client,
-            code_supplier: thirdparty.code_fournisseur,
-            vat_number: thirdparty.tva_intra,
+          client: compactObject({
+            ...serializeThirdpartySummary(thirdparty),
+            vat_number: cleanString(thirdparty.tva_intra),
             outstanding_balance: money(thirdparty.outstanding_balance),
-            address: {
-              street: thirdparty.address,
-              zip: thirdparty.zip,
-              town: thirdparty.town,
+            address: compactObject({
+              street: cleanString(thirdparty.address),
+              zip: cleanString(thirdparty.zip),
+              town: cleanString(thirdparty.town),
               country: country(thirdparty),
-            },
-          },
-          contacts: contacts.map((contact) => ({
+            }),
+          }),
+          contacts: contacts.map((contact) => compactObject({
             id: dolibarrId(contact.id),
-            name: contactName(contact),
-            firstname: contact.firstname,
-            lastname: contact.lastname,
-            email: contact.email,
-            phone: contact.phone_pro ?? contact.phone_perso,
-            mobile: contact.phone_mobile,
-            position: contact.poste,
-            address: {
-              street: contact.address,
-              zip: contact.zip,
-              town: contact.town,
-            },
+            name: cleanString(contactName(contact)),
+            firstname: cleanString(contact.firstname),
+            lastname: cleanString(contact.lastname),
+            email: cleanString(contact.email),
+            phone: cleanString(contact.phone_pro ?? contact.phone_perso),
+            mobile: cleanString(contact.phone_mobile),
+            position: cleanString(contact.poste),
+            address: compactObject({
+              street: cleanString(contact.address),
+              zip: cleanString(contact.zip),
+              town: cleanString(contact.town),
+            }),
           })),
           open_invoices: {
             count: openInvoices.length,

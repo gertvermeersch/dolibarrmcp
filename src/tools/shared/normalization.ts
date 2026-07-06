@@ -33,6 +33,22 @@ export function moneyOrZero(value: unknown): number {
   return money(value) ?? 0;
 }
 
+export function cleanString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export function compactObject<T extends Record<string, unknown>>(value: T): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => {
+      if (entry === undefined || entry === null) return false;
+      if (typeof entry === "string" && entry.trim().length === 0) return false;
+      return true;
+    }),
+  );
+}
+
 export function isoDateFromTimestamp(value: unknown): string | undefined {
   const timestamp = numberOrUndefined(value);
   if (timestamp === undefined || timestamp <= 0) return undefined;
@@ -71,8 +87,8 @@ export function remainingToPay(invoice: DolibarrInvoice): number {
 
 export function country(thirdparty: DolibarrThirdparty): { code?: string; name?: string } | undefined {
   const raw = thirdparty as CountryFields;
-  const code = stringOrUndefined(raw.country_code ?? raw.country_code_iso ?? raw.code_pays);
-  const name = stringOrUndefined(raw.country ?? raw.country_label ?? raw.country_name ?? raw.libelle_pays ?? raw.pays);
+  const code = cleanString(raw.country_code ?? raw.country_code_iso ?? raw.code_pays);
+  const name = cleanString(raw.country ?? raw.country_label ?? raw.country_name ?? raw.libelle_pays ?? raw.pays);
 
   if (code || name) {
     return { code, name };
@@ -81,10 +97,4 @@ export function country(thirdparty: DolibarrThirdparty): { code?: string; name?:
   const countryId = numberOrUndefined(thirdparty.country_id);
   if (countryId === undefined) return undefined;
   return knownCountriesById[countryId];
-}
-
-function stringOrUndefined(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : undefined;
 }

@@ -5,32 +5,25 @@ import { listOrders } from "../../dolibarr/orders.js";
 import { listProposals } from "../../dolibarr/proposals.js";
 import { listSupplierInvoices } from "../../dolibarr/supplierInvoices.js";
 import {
-  getThirdpartyClientFlag,
-  getThirdpartySupplierFlag,
-  getThirdpartyType,
+  getThirdparty,
   searchThirdparties,
 } from "../../dolibarr/thirdparties.js";
 import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel, proposalStatusLabel } from "../../dolibarr/statusLabels.js";
-import { dolibarrId, isoDateFromTimestamp, money } from "../shared/normalization.js";
+import { dolibarrId, numberOrUndefined } from "../shared/normalization.js";
 import { jsonContent, prettyJsonContent } from "../shared/responses.js";
+import {
+  serializeClientDocumentSummary,
+  serializeInvoiceSearchSummary,
+  serializeProposalSearchSummary,
+  serializeSupplierInvoiceSearchSummary,
+  serializeThirdpartySummary,
+  thirdpartyNameMap,
+} from "../shared/serializers.js";
+import type { DolibarrThirdparty } from "../../types/dolibarr.js";
 
 const resultLimit = "10";
-
-type SupplierInvoiceSearchResult = {
-  id: number;
-  ref: string;
-  socid: number;
-  statut: number;
-  date: number;
-  date_lim_reglement: number;
-  total_ht: number;
-  total_ttc: number;
-  ref_supplier?: string;
-  refSupplier?: string;
-  supplier_ref?: string;
-};
 
 async function optionalSearch<T>(search: () => Promise<T[]>): Promise<T[]> {
   try {
@@ -39,6 +32,24 @@ async function optionalSearch<T>(search: () => Promise<T[]>): Promise<T[]> {
     if (err instanceof DolibarrApiError && (err.status === 403 || err.status === 404)) return [];
     throw err;
   }
+}
+
+async function resolveMissingThirdpartyNames(
+  ids: number[],
+  knownThirdparties: DolibarrThirdparty[],
+): Promise<Map<number, string>> {
+  const names = thirdpartyNameMap(knownThirdparties);
+  const missingIds = [...new Set(ids)].filter((id) => !names.has(id));
+
+  const missingThirdparties = await Promise.all(
+    missingIds.map((id) => optionalSearch(() => getThirdparty(id).then((thirdparty) => [thirdparty]))),
+  );
+
+  for (const thirdparty of missingThirdparties.flat()) {
+    names.set(dolibarrId(thirdparty.id), thirdparty.name);
+  }
+
+  return names;
 }
 
 function documentSearchParams(query: string, thirdpartyIds: number[]): string {
@@ -75,68 +86,43 @@ export function registerSearchAcross(server: McpServer): void {
           optionalSearch(() => listOrders(searchParams, { suppressErrorStatuses: [403, 404] })),
           optionalSearch(() => listProposals(searchParams)),
         ]);
+        const clientIds = [
+          ...invoices,
+          ...orders,
+          ...proposals,
+        ]
+          .map((document) => numberOrUndefined(document.socid))
+          .filter((id): id is number => id !== undefined);
+        const supplierIds = supplierInvoices
+          .map((document) => numberOrUndefined(document.socid))
+          .filter((id): id is number => id !== undefined);
+        const [clientNames, supplierNames] = await Promise.all([
+          resolveMissingThirdpartyNames(clientIds, thirdparties),
+          resolveMissingThirdpartyNames(supplierIds, thirdparties),
+        ]);
 
         return prettyJsonContent({
-          thirdparties: thirdparties.map((thirdparty) => ({
-            id: dolibarrId(thirdparty.id),
-            name: thirdparty.name,
-            type: getThirdpartyType(thirdparty),
-            is_client: getThirdpartyClientFlag(thirdparty) > 0,
-            is_supplier: getThirdpartySupplierFlag(thirdparty) > 0,
-            email: thirdparty.email,
-            phone: thirdparty.phone,
-            code_client: thirdparty.code_client,
-            code_supplier: thirdparty.code_fournisseur,
-            town: thirdparty.town,
-            zip: thirdparty.zip,
-          })),
-          invoices: invoices.map((invoice) => ({
-            id: dolibarrId(invoice.id),
-            ref: invoice.ref,
-            client_id: dolibarrId(invoice.socid),
-            status: invoiceStatusLabel(invoice.statut),
-            status_code: invoice.statut,
-            date: isoDateFromTimestamp(invoice.date),
-            due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
-            total_excluding_tax: money(invoice.total_ht),
-            total_including_tax: money(invoice.total_ttc),
-          })),
-          supplier_invoices: supplierInvoices.map((invoice) => {
-            const supplierInvoice = invoice as SupplierInvoiceSearchResult;
-            return {
-              id: dolibarrId(invoice.id),
-              ref: invoice.ref,
-              supplier_ref: supplierInvoice.ref_supplier ?? supplierInvoice.refSupplier ?? supplierInvoice.supplier_ref,
-              supplier_id: dolibarrId(invoice.socid),
-              status: invoiceStatusLabel(invoice.statut),
-              status_code: invoice.statut,
-              date: isoDateFromTimestamp(invoice.date),
-              due_date: isoDateFromTimestamp(invoice.date_lim_reglement),
-              total_excluding_tax: money(invoice.total_ht),
-              total_including_tax: money(invoice.total_ttc),
-            };
-          }),
-          orders: orders.map((order) => ({
-            id: dolibarrId(order.id),
-            ref: order.ref,
-            client_id: dolibarrId(order.socid),
-            status: orderStatusLabel(order.statut ?? order.status),
-            status_code: order.statut ?? order.status,
-            date: isoDateFromTimestamp(order.date_commande ?? order.date),
-            total_excluding_tax: money(order.total_ht),
-            total_including_tax: money(order.total_ttc),
-          })),
-          proposals: proposals.map((proposal) => ({
-            id: dolibarrId(proposal.id),
-            ref: proposal.ref,
-            client_id: dolibarrId(proposal.socid),
-            status: proposalStatusLabel(proposal.statut),
-            status_code: proposal.statut,
-            date: isoDateFromTimestamp(proposal.date),
-            valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
-            total_excluding_tax: money(proposal.total_ht),
-            total_including_tax: money(proposal.total_ttc),
-          })),
+          thirdparties: thirdparties.map(serializeThirdpartySummary),
+          invoices: invoices.map((invoice) => serializeInvoiceSearchSummary(
+            invoice,
+            invoiceStatusLabel(invoice.statut) ?? "unknown",
+            clientNames,
+          )),
+          supplier_invoices: supplierInvoices.map((invoice) => serializeSupplierInvoiceSearchSummary(
+            invoice,
+            invoiceStatusLabel(invoice.statut) ?? "unknown",
+            supplierNames,
+          )),
+          orders: orders.map((order) => serializeClientDocumentSummary(
+            order,
+            orderStatusLabel(order.statut ?? order.status) ?? "unknown",
+            clientNames,
+          )),
+          proposals: proposals.map((proposal) => serializeProposalSearchSummary(
+            proposal,
+            proposalStatusLabel(proposal.statut) ?? "unknown",
+            clientNames,
+          )),
         });
       } catch (err) {
         return jsonContent(toApiError(err));

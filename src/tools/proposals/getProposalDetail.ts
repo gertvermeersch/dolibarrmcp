@@ -7,6 +7,7 @@ import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFi
 import { proposalStatusLabel } from "../../dolibarr/statusLabels.js";
 import { jsonContent } from "../shared/responses.js";
 import { dolibarrId, isoDateFromTimestamp, money } from "../shared/normalization.js";
+import { serializeLineItem, serializeThirdpartyIdentity } from "../shared/serializers.js";
 import type { DolibarrProposal } from "../../types/dolibarr.js";
 
 async function resolveProposal(value: string): Promise<DolibarrProposal | undefined> {
@@ -62,29 +63,8 @@ export function registerGetProposalDetail(server: McpServer): void {
             total_tax: money(rawProposal.total_tva),
             total_including_tax: money(proposal.total_ttc),
           },
-          client: {
-            id: dolibarrId(client.id),
-            name: client.name,
-            code_client: client.code_client,
-            email: client.email,
-            phone: client.phone,
-            address: client.address,
-            zip: client.zip,
-            town: client.town,
-            vat_number: client.tva_intra,
-          },
-          lines: (proposal.lines ?? []).map((line) => ({
-            id: dolibarrId(line.id),
-            product_id: line.fk_product === undefined ? undefined : dolibarrId(line.fk_product),
-            product_ref: line.product_ref,
-            label: line.product_label ?? line.desc,
-            description: line.desc,
-            qty: line.qty,
-            unit_price: money(line.subprice),
-            vat_rate: line.tva_tx,
-            total_excluding_tax: money(line.total_ht),
-            total_including_tax: money(line.total_ttc),
-          })),
+          client: serializeThirdpartyIdentity(client),
+          lines: (proposal.lines ?? []).map(serializeLineItem),
         });
       } catch (err) {
         return jsonContent(toApiError(err));
