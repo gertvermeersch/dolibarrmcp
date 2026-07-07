@@ -11,7 +11,7 @@ export async function listSupplierInvoices(params: string): Promise<DolibarrInvo
 
 export async function createSupplierInvoice(data: {
   socid: number;
-  date: number;
+  date: string;
   ref_supplier?: string;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {

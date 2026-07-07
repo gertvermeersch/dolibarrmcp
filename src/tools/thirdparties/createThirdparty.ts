@@ -11,7 +11,7 @@ export function registerCreateThirdparty(server: McpServer): void {
     {
       description: "Create a new thirdparty (client and/or supplier) in Dolibarr.",
       inputSchema: {
-        name: z.string().describe("Company or person name"),
+        name: z.string().min(1).describe("Company or person name"),
         is_client: z.boolean().default(false).describe("Mark as client"),
         is_supplier: z.boolean().default(false).describe("Mark as supplier"),
         email: z.string().email().optional(),
@@ -28,6 +28,7 @@ export function registerCreateThirdparty(server: McpServer): void {
           name,
           client: is_client ? 1 : 0,
           supplier: is_supplier ? 1 : 0,
+          fournisseur: is_supplier ? 1 : 0,
           email,
           phone,
           address,

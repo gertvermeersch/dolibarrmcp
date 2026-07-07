@@ -3,6 +3,7 @@ import test from "node:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { DolibarrProduct } from "../../src/types/dolibarr.js";
+import { isoDateFromTimestamp } from "../../src/tools/shared/normalization.js";
 
 const hasDolibarrCredentials = Boolean(process.env.DOLIBARR_URL && process.env.DOLIBARR_API_KEY);
 const testRecordPrefix = "MCP Integration";
@@ -76,6 +77,16 @@ function uniqueRef(label: string): string {
 
 function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+function dolibarrDateFromTimestamp(value: unknown): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+
+  const date = isoDateFromTimestamp(value);
+  assert.ok(date, `Expected valid Dolibarr date timestamp, got ${String(value)}`);
+  return date;
 }
 
 async function findActiveService(
@@ -262,6 +273,7 @@ test("creates and validates a proposal with an existing service line and a free-
     const proposal = await getProposal(proposalId);
     assert.equal(Number(proposal.id), proposalId);
     assert.equal(Number(proposal.socid), clientId);
+    assert.equal(dolibarrDateFromTimestamp(proposal.date), "2026-05-19");
     assert.ok(Number(proposal.statut) > 0, `Expected validated proposal status, got ${proposal.statut}`);
     assert.ok((proposal.lines?.length ?? 0) >= 2);
     const catalogLine = proposal.lines?.find((line) => Number(line.fk_product) === Number(catalogService.id));
@@ -354,6 +366,7 @@ test("creates, validates, reads, and deletes a client invoice in the real Doliba
     invoiceRef = invoice.ref;
     assert.equal(Number(invoice.id), invoiceId);
     assert.equal(Number(invoice.socid), clientId);
+    assert.equal(dolibarrDateFromTimestamp(invoice.date), todayIsoDate());
     assert.ok(Number(invoice.statut) > 0, `Expected validated invoice status, got ${invoice.statut}`);
     assert.ok((invoice.lines?.length ?? 0) >= 2);
 
@@ -412,7 +425,6 @@ test("creates, validates, reads, and deletes a supplier invoice in the real Doli
     name: supplierName,
     client: 0,
     supplier: 1,
-    fournisseur: 1,
     town: "Integration Test",
   });
 
@@ -466,6 +478,7 @@ test("creates, validates, reads, and deletes a supplier invoice in the real Doli
     invoiceRef = invoice.ref;
     assert.equal(Number(invoice.id), invoiceId);
     assert.equal(Number(invoice.socid), supplierId);
+    assert.equal(dolibarrDateFromTimestamp(invoice.date), todayIsoDate());
     assert.ok(Number(invoice.statut) > 0, `Expected validated supplier invoice status, got ${invoice.statut}`);
     assert.ok((invoice.lines?.length ?? 0) >= lines.length);
 
@@ -676,6 +689,7 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
   const searchToken = uniqueRef("Thirdparty Search");
   const clientName = `${integrationLabel("Search Client")} ${searchToken}`;
   const supplierName = `${integrationLabel("Search Supplier")} ${searchToken}`;
+  const bothName = `${integrationLabel("Search Both")} ${searchToken}`;
 
   const clientId = await createThirdparty({
     name: clientName,
@@ -688,8 +702,14 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
     name: supplierName,
     client: 0,
     supplier: 1,
-    fournisseur: 1,
     email: `mcp-it-supplier-${Date.now()}@example.test`,
+    town: "Integration Test",
+  });
+  const bothId = await createThirdparty({
+    name: bothName,
+    client: 1,
+    supplier: 1,
+    email: `mcp-it-both-${Date.now()}@example.test`,
     town: "Integration Test",
   });
 
@@ -705,6 +725,10 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
     assert.ok(
       allResults.some((thirdparty) => Number(thirdparty.id) === supplierId),
       `Expected searchThirdparties(all) to find supplier ${supplierName}`,
+    );
+    assert.ok(
+      allResults.some((thirdparty) => Number(thirdparty.id) === bothId),
+      `Expected searchThirdparties(all) to find client/supplier ${bothName}`,
     );
 
     const clientResults = await searchThirdparties(searchToken, "clients");
@@ -752,11 +776,24 @@ test("searches disposable thirdparties through API helpers and MCP formatting", 
     assert.equal(formattedSupplier.type, "supplier");
     assert.equal(formattedSupplier.is_client, false);
     assert.equal(formattedSupplier.is_supplier, true);
+
+    const formattedAll = await callJsonTool<Array<Record<string, unknown>>>(
+      registerSearchThirdparties,
+      "search_thirdparties",
+      { query: searchToken, kind: "all" },
+    );
+    const formattedBoth = formattedAll.find((thirdparty) => thirdparty.id === bothId);
+    assert.ok(formattedBoth, `Expected search_thirdparties to format client/supplier ${bothName}`);
+    assert.equal(formattedBoth.name, bothName);
+    assert.equal(formattedBoth.type, "both");
+    assert.equal(formattedBoth.is_client, true);
+    assert.equal(formattedBoth.is_supplier, true);
   } catch (err) {
     testError = err;
   } finally {
     await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
     await deleteThirdparty(supplierId).catch((err: unknown) => cleanupErrors.push(err));
+    await deleteThirdparty(bothId).catch((err: unknown) => cleanupErrors.push(err));
   }
 
   throwWithCleanupErrors(testError, cleanupErrors);

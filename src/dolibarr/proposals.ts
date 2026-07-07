@@ -12,7 +12,7 @@ export async function listProposals(params: string): Promise<DolibarrProposal[]>
 
 export async function createProposal(data: {
   socid: number;
-  date: number;
+  date: string;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
   return dolibarr.post<number>("/proposals", data);

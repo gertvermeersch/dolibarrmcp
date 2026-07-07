@@ -24,7 +24,12 @@ export function registerValidateProposal(server: McpServer): void {
           status: "validated",
         });
       } catch (err) {
-        return jsonContent(toApiError(err));
+        const result = toApiError(err);
+        return jsonContent(
+          "success" in result
+            ? { ...result, proposal_id }
+            : result,
+        );
       }
     },
   );

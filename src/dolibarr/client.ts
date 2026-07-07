@@ -1,3 +1,4 @@
+import { STATUS_CODES } from "node:http";
 import { config } from "../config.js";
 import type { McpError } from "../types/tools.js";
 
@@ -173,6 +174,33 @@ function getDolibarrErrorMessage(body: unknown): string | undefined {
   return typeof message === "string" ? message : undefined;
 }
 
+function notFoundMessageForPath(path: string): string | undefined {
+  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties)\/(\d+)(?:\/|$|\?)/.exec(path);
+  if (!match) return undefined;
+
+  const [, resource, id] = match;
+  const entity: Record<string, string> = {
+    invoices: "Invoice",
+    supplierinvoices: "Supplier invoice",
+    proposals: "Proposal",
+    thirdparties: "Thirdparty",
+  };
+
+  return `${entity[resource]} ${id} not found.`;
+}
+
+function cleanDolibarrErrorMessage(err: DolibarrApiError): string {
+  const dolibarrMessage = getDolibarrErrorMessage(err.responseBody);
+  const statusText = STATUS_CODES[err.status] ?? "Error";
+  return dolibarrMessage
+    ? `Dolibarr API error ${err.status}: ${dolibarrMessage}`
+    : `Dolibarr API error ${err.status}: ${statusText}`;
+}
+
+export type ApiErrorContext = {
+  supplierInvoiceRef?: string;
+};
+
 function moduleHintForPath(path: string): { name: string; action: string } | undefined {
   if (path.startsWith("/products")) {
     return {
@@ -214,23 +242,60 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
 }
 
 // Converts a DolibarrApiError into a structured McpError for tool responses
-export function toApiError(err: unknown): McpError {
-  if (err instanceof DolibarrApiError && err.status === 403) {
+export function toApiError(
+  err: unknown,
+  context: ApiErrorContext = {},
+): McpError | Record<string, unknown> {
+  if (err instanceof DolibarrApiError) {
     const dolibarrMessage = getDolibarrErrorMessage(err.responseBody);
-    const hint = moduleHintForPath(err.path);
 
-    if (dolibarrMessage === "Forbidden" && hint) {
+    if (err.status === 404) {
       return {
-        error: "DOLIBARR_MODULE_UNAVAILABLE",
-        message: `Dolibarr refused access to the ${hint.name} API. The module may be inactive or the API user may be missing permissions.`,
-        action: hint.action,
+        error: "NOT_FOUND",
+        message: notFoundMessageForPath(err.path) ?? "The requested Dolibarr record was not found.",
       };
+    }
+
+    if (err.status === 304 && /\/validate$/.test(err.path)) {
+      return {
+        success: true,
+        status: "validated",
+        note: "Already validated.",
+      };
+    }
+
+    if (dolibarrMessage === "ErrorBadThirdPartyName") {
+      return {
+        error: "VALIDATION_ERROR",
+        message: "Thirdparty name is required.",
+      };
+    }
+
+    if (dolibarrMessage === "ErrorRefAlreadyExists") {
+      return {
+        error: "DUPLICATE_REF",
+        message: context.supplierInvoiceRef
+          ? `Supplier invoice ref '${context.supplierInvoiceRef}' already exists for this supplier.`
+          : "Supplier invoice ref already exists for this supplier.",
+      };
+    }
+
+    if (err.status === 403) {
+      const hint = moduleHintForPath(err.path);
+
+      if (dolibarrMessage === "Forbidden" && hint) {
+        return {
+          error: "DOLIBARR_MODULE_UNAVAILABLE",
+          message: `Dolibarr refused access to the ${hint.name} API. The module may be inactive or the API user may be missing permissions.`,
+          action: hint.action,
+        };
+      }
     }
   }
 
   const message =
     err instanceof DolibarrApiError
-      ? err.message
+      ? cleanDolibarrErrorMessage(err)
       : err instanceof Error
         ? err.message
         : "Unknown error";

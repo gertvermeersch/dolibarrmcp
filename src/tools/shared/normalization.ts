@@ -6,6 +6,8 @@ const knownCountriesById: Record<number, { code: string; name: string }> = {
   2: { code: "BE", name: "Belgium" },
 };
 
+const defaultDolibarrDateTimezone = "Europe/Brussels";
+
 export function numberOrUndefined(value: unknown): number | undefined {
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
@@ -56,7 +58,24 @@ export function isoDateFromTimestamp(value: unknown): string | undefined {
   const milliseconds = Math.abs(timestamp) > 99_999_999_999 ? timestamp : timestamp * 1000;
   const date = new Date(milliseconds);
   if (Number.isNaN(date.getTime())) return undefined;
-  return date.toISOString().slice(0, 10);
+
+  const timeZone = process.env.DOLIBARR_TIMEZONE ?? process.env.TZ ?? defaultDolibarrDateTimezone;
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+    const part = (type: string) => parts.find((entry) => entry.type === type)?.value;
+    const year = part("year");
+    const month = part("month");
+    const day = part("day");
+
+    return year && month && day ? `${year}-${month}-${day}` : undefined;
+  } catch {
+    return date.toISOString().slice(0, 10);
+  }
 }
 
 export function isoInstantFromTimestamp(value: unknown): string | undefined {
@@ -67,6 +86,28 @@ export function isoInstantFromTimestamp(value: unknown): string | undefined {
   const date = new Date(milliseconds);
   if (Number.isNaN(date.getTime())) return undefined;
   return date.toISOString();
+}
+
+export function isIsoDateString(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+
+  const [, yearText, monthText, dayText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const timestampMs = Date.UTC(year, month - 1, day, 12);
+  const date = new Date(timestampMs);
+
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 export function isPaidInvoice(invoice: DolibarrInvoice): boolean {

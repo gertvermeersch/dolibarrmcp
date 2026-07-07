@@ -48,7 +48,7 @@ export function registerCreateSupplierInvoice(server: McpServer): void {
             : result,
         );
       } catch (err) {
-        return jsonContent(toApiError(err));
+        return jsonContent(toApiError(err, { supplierInvoiceRef: supplier_invoice_ref }));
       }
     },
   );

@@ -78,7 +78,12 @@ export async function getThirdpartyContacts(id: number): Promise<DolibarrContact
 export async function createThirdparty(
   data: Partial<DolibarrThirdparty>,
 ): Promise<number> {
-  return dolibarr.post<number>("/thirdparties", data);
+  const payload =
+    data.supplier !== undefined && data.fournisseur === undefined
+      ? { ...data, fournisseur: data.supplier }
+      : data;
+
+  return dolibarr.post<number>("/thirdparties", payload);
 }
 
 export async function updateThirdparty(

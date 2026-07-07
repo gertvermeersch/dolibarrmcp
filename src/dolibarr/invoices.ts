@@ -11,7 +11,7 @@ export async function listInvoices(params: string): Promise<DolibarrInvoice[]> {
 
 export async function createInvoice(data: {
   socid: number;
-  date: number;
+  date: string;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
   return dolibarr.post<number>("/invoices", data);

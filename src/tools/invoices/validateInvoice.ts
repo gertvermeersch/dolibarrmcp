@@ -24,7 +24,12 @@ export function registerValidateInvoice(server: McpServer): void {
           status: "validated",
         });
       } catch (err) {
-        return jsonContent(toApiError(err));
+        const result = toApiError(err);
+        return jsonContent(
+          "success" in result
+            ? { ...result, invoice_id }
+            : result,
+        );
       }
     },
   );

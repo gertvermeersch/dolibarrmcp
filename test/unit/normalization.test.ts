@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   country,
   dolibarrId,
+  isIsoDateString,
   isoDateFromTimestamp,
   money,
   remainingToPay,
@@ -26,8 +27,15 @@ test("rounds monetary values from numbers and Dolibarr strings", () => {
 });
 
 test("normalizes Unix timestamps to ISO date strings", () => {
-  assert.equal(isoDateFromTimestamp(1778450400), "2026-05-10");
-  assert.equal(isoDateFromTimestamp("1778450400"), "2026-05-10");
+  assert.equal(isoDateFromTimestamp(1778450400), "2026-05-11");
+  assert.equal(isoDateFromTimestamp("1778450400"), "2026-05-11");
+  assert.equal(isoDateFromTimestamp(Date.UTC(2026, 6, 4, 22) / 1000), "2026-07-05");
+});
+
+test("validates date-only input before sending it to Dolibarr", () => {
+  assert.equal(isIsoDateString("2026-07-05"), true);
+  assert.equal(isIsoDateString("2026-02-31"), false);
+  assert.equal(isIsoDateString("2026-7-5"), false);
 });
 
 test("keeps Dolibarr IDs numeric when the API returns strings", () => {
