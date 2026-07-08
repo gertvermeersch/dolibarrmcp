@@ -241,6 +241,24 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
   return undefined;
 }
 
+export function isDolibarrModuleUnavailableError(err: unknown): boolean {
+  if (!(err instanceof DolibarrApiError) || err.status !== 403) return false;
+  return getDolibarrErrorMessage(err.responseBody) === "Forbidden" && Boolean(moduleHintForPath(err.path));
+}
+
+function dolibarrErrorText(err: DolibarrApiError): string {
+  const parts = [err.message, getDolibarrErrorMessage(err.responseBody)];
+  if (typeof err.responseBody === "string") parts.push(err.responseBody);
+  if (err.responseBody && typeof err.responseBody === "object") parts.push(JSON.stringify(err.responseBody));
+  return parts.filter(Boolean).join(" ");
+}
+
+function isInvoiceDraftWarehouseError(err: DolibarrApiError): boolean {
+  if (!/^\/invoices\/\d+\/settodraft$/.test(err.path)) return false;
+  if (err.status !== 400 && err.status !== 500) return false;
+  return /idwarehouse|warehouse|entrep[oô]t/i.test(dolibarrErrorText(err));
+}
+
 // Converts a DolibarrApiError into a structured McpError for tool responses
 export function toApiError(
   err: unknown,
@@ -264,6 +282,14 @@ export function toApiError(
       };
     }
 
+    if (isInvoiceDraftWarehouseError(err)) {
+      return {
+        error: "WAREHOUSE_REQUIRED",
+        message: "Dolibarr requires a warehouse when reopening this customer invoice to draft because stock movements may need to be reversed.",
+        action: "Pass warehouse_id on this tool call, or set DOLIBARR_DEFAULT_WAREHOUSE_ID for automated invoice reopen flows.",
+      };
+    }
+
     if (dolibarrMessage === "ErrorBadThirdPartyName") {
       return {
         error: "VALIDATION_ERROR",
@@ -283,7 +309,7 @@ export function toApiError(
     if (err.status === 403) {
       const hint = moduleHintForPath(err.path);
 
-      if (dolibarrMessage === "Forbidden" && hint) {
+      if (hint && isDolibarrModuleUnavailableError(err)) {
         return {
           error: "DOLIBARR_MODULE_UNAVAILABLE",
           message: `Dolibarr refused access to the ${hint.name} API. The module may be inactive or the API user may be missing permissions.`,

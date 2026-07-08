@@ -26,6 +26,7 @@ It connects to Dolibarr through the REST API and serves MCP over HTTP.
    | `DOLIBARR_API_KEY` | API token from the Dolibarr user account. |
    | `DOLIBARR_TIMEZONE` | Optional. Business timezone for Dolibarr date-only fields. Defaults to `Europe/Brussels`. |
    | `DOLIBARR_DEBUG` | Optional. Set to `true` to log Dolibarr requests and responses to the console. |
+   | `DOLIBARR_DEFAULT_WAREHOUSE_ID` | Optional. Default warehouse used when reopening validated customer invoices that may reverse stock movements. |
    | `MCP_ALLOW_DELETES` | Optional. Set to `true` to enable guarded delete tools. Defaults to disabled. |
    | `MCP_HTTP_HOST` | Defaults to `0.0.0.0`. |
    | `MCP_HTTP_PORT` | Defaults to `3000`. |

@@ -10,7 +10,7 @@ export type DeleteDryRun = {
   ref?: string;
   name?: string;
   status?: string;
-  linked?: Record<string, number>;
+  linked?: Record<string, number | "unavailable">;
 };
 
 export function deletesDisabledResponse(): Record<string, unknown> | undefined {

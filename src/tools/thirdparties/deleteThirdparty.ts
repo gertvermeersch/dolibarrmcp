@@ -5,17 +5,23 @@ import { listOrders } from "../../dolibarr/orders.js";
 import { listProposals } from "../../dolibarr/proposals.js";
 import { listSupplierInvoices } from "../../dolibarr/supplierInvoices.js";
 import { deleteThirdparty, getThirdparty } from "../../dolibarr/thirdparties.js";
-import { isDolibarrNotFoundError, toApiError } from "../../dolibarr/client.js";
+import {
+  isDolibarrModuleUnavailableError,
+  isDolibarrNotFoundError,
+  toApiError,
+} from "../../dolibarr/client.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { cleanString } from "../shared/normalization.js";
 import { jsonContent } from "../shared/responses.js";
 import { deleteDryRun, deletesDisabledResponse } from "../shared/deleteGuards.js";
 
+type LinkedDocumentCount = number | "unavailable";
+
 type LinkedDocumentCounts = {
-  invoices: number;
-  proposals: number;
-  supplier_invoices: number;
-  orders: number;
+  invoices: LinkedDocumentCount;
+  proposals: LinkedDocumentCount;
+  supplier_invoices: LinkedDocumentCount;
+  orders: LinkedDocumentCount;
 };
 
 function linkedDocumentParams(thirdpartyId: number): string {
@@ -27,11 +33,12 @@ function linkedDocumentParams(thirdpartyId: number): string {
   });
 }
 
-async function countOrZero<T>(load: () => Promise<T[]>): Promise<number> {
+async function countOrUnavailable<T>(load: () => Promise<T[]>): Promise<LinkedDocumentCount> {
   try {
     return (await load()).length;
   } catch (err) {
     if (isDolibarrNotFoundError(err)) return 0;
+    if (isDolibarrModuleUnavailableError(err)) return "unavailable";
     throw err;
   }
 }
@@ -39,10 +46,10 @@ async function countOrZero<T>(load: () => Promise<T[]>): Promise<number> {
 async function linkedDocumentCounts(thirdpartyId: number): Promise<LinkedDocumentCounts> {
   const params = linkedDocumentParams(thirdpartyId);
   const [invoices, proposals, supplierInvoices, orders] = await Promise.all([
-    countOrZero(() => listInvoices(params)),
-    countOrZero(() => listProposals(params)),
-    countOrZero(() => listSupplierInvoices(params)),
-    countOrZero(() => listOrders(params)),
+    countOrUnavailable(() => listInvoices(params)),
+    countOrUnavailable(() => listProposals(params)),
+    countOrUnavailable(() => listSupplierInvoices(params)),
+    countOrUnavailable(() => listOrders(params)),
   ]);
 
   return {
@@ -54,7 +61,7 @@ async function linkedDocumentCounts(thirdpartyId: number): Promise<LinkedDocumen
 }
 
 function hasLinkedDocuments(linked: LinkedDocumentCounts): boolean {
-  return Object.values(linked).some((count) => count > 0);
+  return Object.values(linked).some((count) => typeof count === "number" && count > 0);
 }
 
 function linkedDocumentsResponse(name: string | undefined, linked: LinkedDocumentCounts): Record<string, unknown> {

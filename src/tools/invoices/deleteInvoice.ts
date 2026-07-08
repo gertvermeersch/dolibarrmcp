@@ -20,9 +20,10 @@ export function registerDeleteInvoice(server: McpServer): void {
         invoice_id: z.number().int().positive().describe("Dolibarr invoice ID"),
         confirm: z.boolean().default(false).describe("Must be true to delete. Omit for a dry run."),
         reopen_if_validated: z.boolean().default(false).describe("Reopen non-draft invoices before deleting."),
+        warehouse_id: z.number().int().positive().optional().describe("Warehouse ID to use when reopening a validated invoice that affects stock."),
       },
     },
-    async ({ invoice_id, confirm, reopen_if_validated }) => {
+    async ({ invoice_id, confirm, reopen_if_validated, warehouse_id }) => {
       try {
         const disabled = deletesDisabledResponse();
         if (disabled) return jsonContent(disabled);
@@ -44,7 +45,7 @@ export function registerDeleteInvoice(server: McpServer): void {
             return jsonContent(mustReopenResponse("Invoice", invoice.ref, "reopen_if_validated"));
           }
 
-          await setInvoiceDraft(invoice_id);
+          await setInvoiceDraft(invoice_id, { warehouseId: warehouse_id });
         }
 
         await deleteInvoice(invoice_id);

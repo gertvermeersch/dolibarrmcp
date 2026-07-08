@@ -1,4 +1,5 @@
 import { dolibarr } from "./client.js";
+import { config } from "../config.js";
 import type { DolibarrInvoice, DolibarrInvoiceLine } from "../types/dolibarr.js";
 
 export async function getInvoice(id: number): Promise<DolibarrInvoice> {
@@ -33,10 +34,10 @@ export async function validateInvoice(
 
 export async function setInvoiceDraft(
   invoiceId: number,
-  options: { notrigger?: number } = {},
+  options: { warehouseId?: number } = {},
 ): Promise<DolibarrInvoice> {
   return dolibarr.post<DolibarrInvoice>(`/invoices/${invoiceId}/settodraft`, {
-    notrigger: options.notrigger ?? 0,
+    idwarehouse: options.warehouseId ?? config.dolibarrDefaultWarehouseId ?? -1,
   });
 }
 

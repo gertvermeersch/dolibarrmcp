@@ -5,7 +5,7 @@ process.env.MCP_API_KEY ??= "unit-test";
 process.env.DOLIBARR_URL ??= "http://localhost";
 process.env.DOLIBARR_API_KEY ??= "unit-test";
 
-const { DolibarrApiError, toApiError } = await import("../../src/dolibarr/client.js");
+const { DolibarrApiError, isDolibarrModuleUnavailableError, toApiError } = await import("../../src/dolibarr/client.js");
 
 test("normalizes Dolibarr not-found errors without leaking debug payloads", () => {
   const result = toApiError(new DolibarrApiError(
@@ -69,4 +69,36 @@ test("maps common Dolibarr validation errors to clean MCP errors", () => {
       message: "Supplier invoice ref 'SUP-123' already exists for this supplier.",
     },
   );
+});
+
+test("maps invoice draft warehouse failures to a clean action", () => {
+  assert.deepEqual(
+    toApiError(new DolibarrApiError(
+      400,
+      "Dolibarr API error 400: Invalid value specified for idwarehouse. Expecting integer value",
+      "/invoices/538/settodraft",
+      { error: { message: "Invalid value specified for idwarehouse. Expecting integer value" } },
+    )),
+    {
+      error: "WAREHOUSE_REQUIRED",
+      message: "Dolibarr requires a warehouse when reopening this customer invoice to draft because stock movements may need to be reversed.",
+      action: "Pass warehouse_id on this tool call, or set DOLIBARR_DEFAULT_WAREHOUSE_ID for automated invoice reopen flows.",
+    },
+  );
+});
+
+test("detects inactive module errors on known module endpoints", () => {
+  const err = new DolibarrApiError(
+    403,
+    "Dolibarr API error 403: Forbidden",
+    "/orders?limit=1",
+    { error: { message: "Forbidden" } },
+  );
+
+  assert.equal(isDolibarrModuleUnavailableError(err), true);
+  assert.deepEqual(toApiError(err), {
+    error: "DOLIBARR_MODULE_UNAVAILABLE",
+    message: "Dolibarr refused access to the Customer orders API. The module may be inactive or the API user may be missing permissions.",
+    action: "Enable the Dolibarr Customer orders module and grant the API user order permissions required by this tool.",
+  });
 });

@@ -30,10 +30,11 @@ export function registerSetInvoiceStatus(server: McpServer): void {
       inputSchema: {
         invoice_id: z.number().int().positive().describe("Dolibarr invoice ID"),
         status: z.enum(["draft", "validated", "abandoned"]),
-        notrigger: z.number().int().optional().describe("Set to 1 to disable Dolibarr triggers"),
+        warehouse_id: z.number().int().positive().optional().describe("Warehouse ID to use when reopening a validated invoice that affects stock."),
+        notrigger: z.number().int().optional().describe("Set to 1 to disable Dolibarr triggers when supported by the selected transition."),
       },
     },
-    async ({ invoice_id, status, notrigger }) => {
+    async ({ invoice_id, status, warehouse_id, notrigger }) => {
       try {
         const invoice = await getInvoice(invoice_id);
         const currentStatus = statusCode(invoice.statut);
@@ -49,7 +50,7 @@ export function registerSetInvoiceStatus(server: McpServer): void {
           }
 
           try {
-            await setInvoiceDraft(invoice_id, { notrigger });
+            await setInvoiceDraft(invoice_id, { warehouseId: warehouse_id });
           } catch (err) {
             if (!isAlreadyDraftError(err, invoice_id)) throw err;
           }
