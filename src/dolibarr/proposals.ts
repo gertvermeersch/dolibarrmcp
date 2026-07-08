@@ -47,6 +47,10 @@ export async function closeProposal(
   });
 }
 
+export async function setProposalDraft(proposalId: number): Promise<DolibarrProposal> {
+  return dolibarr.post<DolibarrProposal>(`/proposals/${proposalId}/settodraft`, {});
+}
+
 export async function getProposal(id: number): Promise<DolibarrProposal> {
   return dolibarr.get<DolibarrProposal>(`/proposals/${id}?includeLines=1`);
 }

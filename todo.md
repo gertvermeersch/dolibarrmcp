@@ -19,7 +19,14 @@ Generated from a project scan on 2026-05-20.
 - [x] Implement `search_across` in `src/tools/search/searchAcross.ts`.
   - [x] Search thirdparties, invoices, and orders in parallel.
   - [x] Return lean grouped results with IDs, refs/names, dates, and statuses.
- 
+
+## Search improvements
+
+- [ ] Develop content search across document lines.
+  - [ ] Search for text contained in proposal, order, client invoice, and supplier invoice lines.
+  - [ ] Include matched document refs, thirdparty names, line IDs, product/service refs where available, and matched line descriptions.
+  - [ ] Decide whether to extend `search_across` or expose a separate `search_document_content` tool.
+  - [ ] Verify Dolibarr API/filter support for line-description searches, falling back to safe bounded fetch-and-filter only if needed.
 
 ## Existing implementation to verify
 

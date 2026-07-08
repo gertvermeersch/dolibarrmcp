@@ -29,8 +29,22 @@ export async function addSupplierInvoiceLine(
   });
 }
 
-export async function validateSupplierInvoice(invoiceId: number): Promise<void> {
-  await dolibarr.post(`/supplierinvoices/${invoiceId}/validate`, {});
+export async function validateSupplierInvoice(
+  invoiceId: number,
+  options: { notrigger?: number } = {},
+): Promise<void> {
+  await dolibarr.post(`/supplierinvoices/${invoiceId}/validate`, {
+    notrigger: options.notrigger ?? 0,
+  });
+}
+
+export async function setSupplierInvoiceDraft(
+  invoiceId: number,
+  options: { notrigger?: number } = {},
+): Promise<DolibarrInvoice> {
+  return dolibarr.post<DolibarrInvoice>(`/supplierinvoices/${invoiceId}/settodraft`, {
+    notrigger: options.notrigger ?? 0,
+  });
 }
 
 export async function deleteSupplierInvoice(id: number): Promise<void> {

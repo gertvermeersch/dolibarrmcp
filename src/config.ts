@@ -29,6 +29,7 @@ export const config = {
   dolibarrApiKey: required("DOLIBARR_API_KEY"),
   dolibarrDebug: optionalBoolean("DOLIBARR_DEBUG"),
   dolibarrRequestTimeoutMs: optionalPositiveInteger("DOLIBARR_REQUEST_TIMEOUT_MS", 30_000),
+  mcpAllowDeletes: optionalBoolean("MCP_ALLOW_DELETES"),
 
   // Bind to all interfaces by default for Docker/container use; override these
   // for local-only development or when another service owns the default port.
