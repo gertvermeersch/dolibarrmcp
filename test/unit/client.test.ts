@@ -87,6 +87,22 @@ test("maps invoice draft warehouse failures to a clean action", () => {
   );
 });
 
+test("maps invoice not-erasable delete failures to a clean action", () => {
+  assert.deepEqual(
+    toApiError(new DolibarrApiError(
+      403,
+      "Dolibarr API error 403: Forbidden: Invoice not erasable",
+      "/invoices/533",
+      { error: { message: "Forbidden: Invoice not erasable" } },
+    )),
+    {
+      error: "INVOICE_NOT_ERASABLE",
+      message: "Invoice is not erasable in its current state.",
+      action: "Reopen the invoice to draft first, or run delete_invoice with reopen_if_validated:true when this is allowed.",
+    },
+  );
+});
+
 test("detects inactive module errors on known module endpoints", () => {
   const err = new DolibarrApiError(
     403,

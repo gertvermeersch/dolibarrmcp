@@ -259,6 +259,12 @@ function isInvoiceDraftWarehouseError(err: DolibarrApiError): boolean {
   return /idwarehouse|warehouse|entrep[oô]t/i.test(dolibarrErrorText(err));
 }
 
+function isInvoiceNotErasableError(err: DolibarrApiError): boolean {
+  if (!/^\/invoices\/\d+$/.test(err.path)) return false;
+  if (err.status !== 403) return false;
+  return /invoice not erasable/i.test(dolibarrErrorText(err));
+}
+
 // Converts a DolibarrApiError into a structured McpError for tool responses
 export function toApiError(
   err: unknown,
@@ -287,6 +293,14 @@ export function toApiError(
         error: "WAREHOUSE_REQUIRED",
         message: "Dolibarr requires a warehouse when reopening this customer invoice to draft because stock movements may need to be reversed.",
         action: "Pass warehouse_id on this tool call, or set DOLIBARR_DEFAULT_WAREHOUSE_ID for automated invoice reopen flows.",
+      };
+    }
+
+    if (isInvoiceNotErasableError(err)) {
+      return {
+        error: "INVOICE_NOT_ERASABLE",
+        message: "Invoice is not erasable in its current state.",
+        action: "Reopen the invoice to draft first, or run delete_invoice with reopen_if_validated:true when this is allowed.",
       };
     }
 
