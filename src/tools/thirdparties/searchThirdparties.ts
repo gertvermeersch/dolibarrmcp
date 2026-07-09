@@ -1,15 +1,16 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchThirdparties } from "../../dolibarr/thirdparties.js";
-import { toApiError } from "../../dolibarr/client.js";
-import { jsonContent, prettyJsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { serializeThirdpartySummary } from "../shared/serializers.js";
 
 export function registerSearchThirdparties(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "search_thirdparties",
     {
       description: "Search Dolibarr third parties only, with an optional filter for clients or suppliers.",
+      pretty: true,
       inputSchema: {
         query: z.string().describe("Third party name to search for"),
         kind: z.enum(["all", "clients", "suppliers"])
@@ -18,13 +19,8 @@ export function registerSearchThirdparties(server: McpServer): void {
       },
     },
     async ({ query, kind }) => {
-      try {
-        const thirdparties = await searchThirdparties(query, kind);
-
-        return prettyJsonContent(thirdparties.map(serializeThirdpartySummary));
-      } catch (err) {
-        return jsonContent(toApiError(err));
-      }
+      const thirdparties = await searchThirdparties(query, kind);
+      return thirdparties.map(serializeThirdpartySummary);
     },
   );
 }

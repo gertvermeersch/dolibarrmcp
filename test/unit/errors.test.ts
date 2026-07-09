@@ -5,7 +5,7 @@ process.env.MCP_API_KEY ??= "unit-test";
 process.env.DOLIBARR_URL ??= "http://localhost";
 process.env.DOLIBARR_API_KEY ??= "unit-test";
 
-const { DolibarrApiError, isDolibarrModuleUnavailableError, toApiError } = await import("../../src/dolibarr/client.js");
+const { DolibarrApiError, isDolibarrModuleUnavailableError, toApiError } = await import("../../src/dolibarr/errors.js");
 
 test("normalizes Dolibarr not-found errors without leaking debug payloads", () => {
   const result = toApiError(new DolibarrApiError(

@@ -8,11 +8,11 @@ import {
   getThirdparty,
   searchThirdparties,
 } from "../../dolibarr/thirdparties.js";
-import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
+import { DolibarrApiError } from "../../dolibarr/errors.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel, proposalStatusLabel } from "../../dolibarr/statusLabels.js";
 import { dolibarrId, numberOrUndefined } from "../shared/normalization.js";
-import { jsonContent, prettyJsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import {
   serializeClientDocumentSummary,
   serializeInvoiceSearchSummary,
@@ -66,67 +66,65 @@ function documentSearchParams(query: string, thirdpartyIds: number[]): string {
 }
 
 export function registerSearchAcross(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "search_across",
     {
       description: "Fuzzy search across thirdparties, client invoices, supplier invoices, orders, and proposals simultaneously.",
+      pretty: true,
       inputSchema: { query: z.string().describe("Search term") },
     },
     async ({ query }) => {
-      try {
-        const thirdparties = await searchThirdparties(query);
-        const thirdpartyIds = [...new Set(thirdparties
-          .map((thirdparty) => Number(thirdparty.id))
-          .filter(Number.isFinite))];
-        const searchParams = documentSearchParams(query, thirdpartyIds);
+      const thirdparties = await searchThirdparties(query);
+      const thirdpartyIds = [...new Set(thirdparties
+        .map((thirdparty) => Number(thirdparty.id))
+        .filter(Number.isFinite))];
+      const searchParams = documentSearchParams(query, thirdpartyIds);
 
-        const [invoices, supplierInvoices, orders, proposals] = await Promise.all([
-          optionalSearch(() => listInvoices(searchParams)),
-          optionalSearch(() => listSupplierInvoices(searchParams)),
-          optionalSearch(() => listOrders(searchParams, { suppressErrorStatuses: [403, 404] })),
-          optionalSearch(() => listProposals(searchParams)),
-        ]);
-        const clientIds = [
-          ...invoices,
-          ...orders,
-          ...proposals,
-        ]
-          .map((document) => numberOrUndefined(document.socid))
-          .filter((id): id is number => id !== undefined);
-        const supplierIds = supplierInvoices
-          .map((document) => numberOrUndefined(document.socid))
-          .filter((id): id is number => id !== undefined);
-        const [clientNames, supplierNames] = await Promise.all([
-          resolveMissingThirdpartyNames(clientIds, thirdparties),
-          resolveMissingThirdpartyNames(supplierIds, thirdparties),
-        ]);
+      const [invoices, supplierInvoices, orders, proposals] = await Promise.all([
+        optionalSearch(() => listInvoices(searchParams)),
+        optionalSearch(() => listSupplierInvoices(searchParams)),
+        optionalSearch(() => listOrders(searchParams, { suppressErrorStatuses: [403, 404] })),
+        optionalSearch(() => listProposals(searchParams)),
+      ]);
+      const clientIds = [
+        ...invoices,
+        ...orders,
+        ...proposals,
+      ]
+        .map((document) => numberOrUndefined(document.socid))
+        .filter((id): id is number => id !== undefined);
+      const supplierIds = supplierInvoices
+        .map((document) => numberOrUndefined(document.socid))
+        .filter((id): id is number => id !== undefined);
+      const [clientNames, supplierNames] = await Promise.all([
+        resolveMissingThirdpartyNames(clientIds, thirdparties),
+        resolveMissingThirdpartyNames(supplierIds, thirdparties),
+      ]);
 
-        return prettyJsonContent({
-          thirdparties: thirdparties.map(serializeThirdpartySummary),
-          invoices: invoices.map((invoice) => serializeInvoiceSearchSummary(
-            invoice,
-            invoiceStatusLabel(invoice.statut) ?? "unknown",
-            clientNames,
-          )),
-          supplier_invoices: supplierInvoices.map((invoice) => serializeSupplierInvoiceSearchSummary(
-            invoice,
-            invoiceStatusLabel(invoice.statut) ?? "unknown",
-            supplierNames,
-          )),
-          orders: orders.map((order) => serializeClientDocumentSummary(
-            order,
-            orderStatusLabel(order.statut ?? order.status) ?? "unknown",
-            clientNames,
-          )),
-          proposals: proposals.map((proposal) => serializeProposalSearchSummary(
-            proposal,
-            proposalStatusLabel(proposal.statut) ?? "unknown",
-            clientNames,
-          )),
-        });
-      } catch (err) {
-        return jsonContent(toApiError(err));
-      }
+      return {
+        thirdparties: thirdparties.map(serializeThirdpartySummary),
+        invoices: invoices.map((invoice) => serializeInvoiceSearchSummary(
+          invoice,
+          invoiceStatusLabel(invoice.statut) ?? "unknown",
+          clientNames,
+        )),
+        supplier_invoices: supplierInvoices.map((invoice) => serializeSupplierInvoiceSearchSummary(
+          invoice,
+          invoiceStatusLabel(invoice.statut) ?? "unknown",
+          supplierNames,
+        )),
+        orders: orders.map((order) => serializeClientDocumentSummary(
+          order,
+          orderStatusLabel(order.statut ?? order.status) ?? "unknown",
+          clientNames,
+        )),
+        proposals: proposals.map((proposal) => serializeProposalSearchSummary(
+          proposal,
+          proposalStatusLabel(proposal.statut) ?? "unknown",
+          clientNames,
+        )),
+      };
     },
   );
 }

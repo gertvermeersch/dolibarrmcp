@@ -5,6 +5,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { DolibarrProduct } from "../../src/types/dolibarr.js";
 import { isoDateFromTimestamp } from "../../src/tools/shared/normalization.js";
 
+
 const hasDolibarrCredentials = Boolean(process.env.DOLIBARR_URL && process.env.DOLIBARR_API_KEY);
 const testRecordPrefix = "MCP Integration";
 const allowProductionIntegrationTests = process.env.DOLIBARR_ALLOW_PRODUCTION_INTEGRATION_TESTS === "true";
@@ -60,6 +61,7 @@ async function loadApi() {
     ...(await import("../../src/tools/search/searchAcross.js")),
     ...(await import("../../src/tools/thirdparties/getClientOverview.js")),
     ...(await import("../../src/tools/thirdparties/searchThirdparties.js")),
+    ...(await import("../../src/dolibarr/errors.js"))
   };
 }
 

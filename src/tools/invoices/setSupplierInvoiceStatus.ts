@@ -5,8 +5,8 @@ import {
   setSupplierInvoiceDraft,
   validateSupplierInvoice,
 } from "../../dolibarr/supplierInvoices.js";
-import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
-import { jsonContent } from "../shared/responses.js";
+import { DolibarrApiError } from "../../dolibarr/errors.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { statusCode } from "../shared/deleteGuards.js";
 
 function isAlreadyDraftError(err: unknown, invoiceId: number): boolean {
@@ -26,7 +26,8 @@ function isAlreadyValidatedError(err: unknown, invoiceId: number): boolean {
 }
 
 export function registerSetSupplierInvoiceStatus(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "set_supplier_invoice_status",
     {
       description: "Set a supplier invoice status to draft or validated. Draft reopens validated invoices and is idempotent.",
@@ -37,56 +38,52 @@ export function registerSetSupplierInvoiceStatus(server: McpServer): void {
       },
     },
     async ({ supplier_invoice_id, status, notrigger }) => {
-      try {
-        const invoice = await getSupplierInvoice(supplier_invoice_id);
-        const currentStatus = statusCode(invoice.statut);
+      const invoice = await getSupplierInvoice(supplier_invoice_id);
+      const currentStatus = statusCode(invoice.statut);
 
-        if (status === "draft") {
-          if (currentStatus === 0) {
-            return jsonContent({
-              success: true,
-              supplier_invoice_id,
-              status: "draft",
-              note: "Already draft.",
-            });
-          }
-
-          try {
-            await setSupplierInvoiceDraft(supplier_invoice_id, { notrigger });
-          } catch (err) {
-            if (!isAlreadyDraftError(err, supplier_invoice_id)) throw err;
-          }
-
-          return jsonContent({
+      if (status === "draft") {
+        if (currentStatus === 0) {
+          return {
             success: true,
             supplier_invoice_id,
             status: "draft",
-          });
-        }
-
-        if (currentStatus === 1) {
-          return jsonContent({
-            success: true,
-            supplier_invoice_id,
-            status: "validated",
-            note: "Already validated.",
-          });
+            note: "Already draft.",
+          };
         }
 
         try {
-          await validateSupplierInvoice(supplier_invoice_id, { notrigger });
+          await setSupplierInvoiceDraft(supplier_invoice_id, { notrigger });
         } catch (err) {
-          if (!isAlreadyValidatedError(err, supplier_invoice_id)) throw err;
+          if (!isAlreadyDraftError(err, supplier_invoice_id)) throw err;
         }
 
-        return jsonContent({
+        return {
+          success: true,
+          supplier_invoice_id,
+          status: "draft",
+        };
+      }
+
+      if (currentStatus === 1) {
+        return {
           success: true,
           supplier_invoice_id,
           status: "validated",
-        });
-      } catch (err) {
-        return jsonContent(toApiError(err));
+          note: "Already validated.",
+        };
       }
+
+      try {
+        await validateSupplierInvoice(supplier_invoice_id, { notrigger });
+      } catch (err) {
+        if (!isAlreadyValidatedError(err, supplier_invoice_id)) throw err;
+      }
+
+      return {
+        success: true,
+        supplier_invoice_id,
+        status: "validated",
+      };
     },
   );
 }

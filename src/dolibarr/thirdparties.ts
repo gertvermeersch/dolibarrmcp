@@ -1,4 +1,5 @@
-import { dolibarr, isDolibarrNotFoundError, type DolibarrRequestOptions } from "./client.js";
+import { dolibarr, type DolibarrRequestOptions } from "./client.js";
+import { isDolibarrNotFoundError } from "./errors.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "./sqlFilters.js";
 import type { DolibarrContact, DolibarrThirdparty } from "../types/dolibarr.js";
 

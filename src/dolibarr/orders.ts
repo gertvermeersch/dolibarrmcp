@@ -1,4 +1,5 @@
-import { dolibarr, isDolibarrNotFoundError, type DolibarrRequestOptions } from "./client.js";
+import { dolibarr, type DolibarrRequestOptions } from "./client.js";
+import { isDolibarrNotFoundError } from "./errors.js";
 import type { DolibarrOrder } from "../types/dolibarr.js";
 
 export async function listOrders(

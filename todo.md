@@ -175,6 +175,46 @@ Use `test/integration/dolibarr-api.test.ts` as the reference style: skip when `D
   - [x] Avoid running against production.
   - [x] Surface cleanup errors with `AggregateError`, as the existing test does.
 
+## Refactoring backlog
+
+Keep these scoped and behavior-preserving. The current layout is good enough; the goal is to remove repeated workflow code before adding larger decision-support tools.
+
+- [x] Declare `zod` as a direct dependency in `package.json`.
+  - [x] 24 source files `import { z } from "zod"`, but it is only resolved transitively via `@modelcontextprotocol/sdk`.
+  - [x] Pin a range matching what the SDK currently resolves, such as `"zod": "^3.25 || ^4.0"`.
+  - [x] This is a latent break, not a cleanup: an SDK bump that drops or major-bumps zod would break every tool with no local code change.
+- [x] Add a shared MCP tool wrapper such as `registerJsonTool` (`src/tools/shared/registerJsonTool.ts`).
+  - [x] Centralize `server.registerTool`, `try`/`catch`, `jsonContent(toApiError(err))`, and optional pretty JSON formatting (`pretty: true`).
+  - [x] Migrate simple search/read tools first to prove the shape (22 of 24 tools migrated).
+  - [x] Preserve per-tool `toApiError` context via `errorContext`, such as supplier invoice duplicate-ref handling.
+  - [x] `validate_invoice` and `validate_proposal` stay on manual `registerTool`: they merge the entity id into the idempotent-success error payload, which the wrapper does not model.
+- [ ] Generalize document creation tool registration.
+  - [ ] Keep `DocumentCreationService` as the workflow engine.
+  - [ ] Extract the repeated create-tool success mapping for invoices, supplier invoices, and proposals.
+  - [ ] Keep entity-specific input names and response field names explicit at the edge.
+- [ ] Extract a shared "resolve by numeric ID or exact ref" helper.
+  - [ ] Cover client invoices, supplier invoices, and proposals.
+  - [ ] Support entity-specific reference filters, including supplier invoice `ref_supplier`.
+  - [ ] Return `undefined` on Dolibarr 404 while still throwing unexpected API errors.
+- [ ] Consolidate guarded document delete flows.
+  - [ ] Share delete-enabled checks, dry-run response construction, draft/reopen guards, delete call, and success response.
+  - [ ] Keep thirdparty delete separate because it has linked-document prechecks.
+  - [ ] Keep reopen options entity-specific, especially customer invoice `warehouse_id`.
+- [x] Split Dolibarr error mapping out of `src/dolibarr/client.ts`.
+  - [x] Keep HTTP request mechanics, timeout handling, and request/response logging in `client.ts`.
+  - [x] Move module hints, Dolibarr error classification, and `toApiError` mapping into a dedicated error module (`src/dolibarr/errors.ts`; `DolibarrApiError` moved there too since the mapping owns it).
+  - [x] Keep existing unit tests around the public error-mapping behavior (renamed `test/unit/client.test.ts` → `errors.test.ts`).
+- [ ] Centralize duplicate thirdparty type normalization.
+  - [ ] Move client/supplier/both/other logic into one domain helper.
+  - [ ] Reuse it from resolvers and serializers.
+- [ ] Add a reusable pagination helper for Dolibarr list endpoints.
+  - [ ] Replace the page loops in revenue and receivables tools once the helper exists.
+  - [ ] Reuse it for upcoming analytics and decision-support tools.
+- [ ] Add focused unit tests as refactors land.
+  - [ ] Cover the MCP wrapper's error path.
+  - [ ] Cover ID/ref resolution behavior.
+  - [ ] Cover guarded delete helper behavior without calling the real API.
+
 ## Test and quality workflow
 
 - [ ] Keep `npm run test:integration` as the real-API test entry point.

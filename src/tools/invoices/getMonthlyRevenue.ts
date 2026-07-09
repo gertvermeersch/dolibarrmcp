@@ -1,10 +1,9 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { listInvoices } from "../../dolibarr/invoices.js";
-import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
-import { jsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import {
   dolibarrId,
   isoDateFromTimestamp,
@@ -57,7 +56,8 @@ async function listMonthlyRevenueInvoices(year: number, month: number): Promise<
 }
 
 export function registerGetMonthlyRevenue(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "get_monthly_revenue",
     {
       description: "Get finalized client invoice revenue totals for a given month, excluding drafts and abandoned invoices.",
@@ -68,61 +68,57 @@ export function registerGetMonthlyRevenue(server: McpServer): void {
       },
     },
     async ({ year, month, include_invoices }) => {
-      try {
-        const { startDate, exclusiveEndDate } = monthDateRange(year, month);
-        const invoices = await listMonthlyRevenueInvoices(year, month);
+      const { startDate, exclusiveEndDate } = monthDateRange(year, month);
+      const invoices = await listMonthlyRevenueInvoices(year, month);
 
-        const totals = invoices.reduce(
-          (sum, invoice) => {
-            const totalHt = numberOrZero(invoice.total_ht);
-            const totalTtc = numberOrZero(invoice.total_ttc);
-            const totalTva = numberOrUndefined(invoice.total_tva) ?? totalTtc - totalHt;
+      const totals = invoices.reduce(
+        (sum, invoice) => {
+          const totalHt = numberOrZero(invoice.total_ht);
+          const totalTtc = numberOrZero(invoice.total_ttc);
+          const totalTva = numberOrUndefined(invoice.total_tva) ?? totalTtc - totalHt;
 
-            sum.total_ht += totalHt;
-            sum.total_tva += totalTva;
-            sum.total_ttc += totalTtc;
-            return sum;
-          },
-          { total_ht: 0, total_tva: 0, total_ttc: 0 },
-        );
+          sum.total_ht += totalHt;
+          sum.total_tva += totalTva;
+          sum.total_ttc += totalTtc;
+          return sum;
+        },
+        { total_ht: 0, total_tva: 0, total_ttc: 0 },
+      );
 
-        const statusCounts = invoices.reduce<Record<string, number>>((counts, invoice) => {
-          const status = invoiceStatusLabel(invoice.statut) ?? "unknown";
-          counts[status] = (counts[status] ?? 0) + 1;
-          return counts;
-        }, {});
+      const statusCounts = invoices.reduce<Record<string, number>>((counts, invoice) => {
+        const status = invoiceStatusLabel(invoice.statut) ?? "unknown";
+        counts[status] = (counts[status] ?? 0) + 1;
+        return counts;
+      }, {});
 
-        const response = {
-          period: {
-            year,
-            month,
-            start_date: startDate,
-            exclusive_end_date: exclusiveEndDate,
-          },
-          invoice_count: invoices.length,
-          status_counts: statusCounts,
-          totals: {
-            total_excluding_tax: moneyOrZero(totals.total_ht),
-            total_tax: moneyOrZero(totals.total_tva),
-            total_including_tax: moneyOrZero(totals.total_ttc),
-          },
-        };
+      const response = {
+        period: {
+          year,
+          month,
+          start_date: startDate,
+          exclusive_end_date: exclusiveEndDate,
+        },
+        invoice_count: invoices.length,
+        status_counts: statusCounts,
+        totals: {
+          total_excluding_tax: moneyOrZero(totals.total_ht),
+          total_tax: moneyOrZero(totals.total_tva),
+          total_including_tax: moneyOrZero(totals.total_ttc),
+        },
+      };
 
-        return jsonContent(include_invoices ? {
-          ...response,
-          invoices: invoices.map((invoice) => ({
-            id: dolibarrId(invoice.id),
-            ref: invoice.ref,
-            status: invoiceStatusLabel(invoice.statut),
-            date: isoDateFromTimestamp(invoice.date),
-            total_excluding_tax: moneyOrZero(invoice.total_ht),
-            total_tax: money(numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht)),
-            total_including_tax: moneyOrZero(invoice.total_ttc),
-          })),
-        } : response);
-      } catch (err) {
-        return jsonContent(toApiError(err));
-      }
+      return include_invoices ? {
+        ...response,
+        invoices: invoices.map((invoice) => ({
+          id: dolibarrId(invoice.id),
+          ref: invoice.ref,
+          status: invoiceStatusLabel(invoice.statut),
+          date: isoDateFromTimestamp(invoice.date),
+          total_excluding_tax: moneyOrZero(invoice.total_ht),
+          total_tax: money(numberOrUndefined(invoice.total_tva) ?? numberOrZero(invoice.total_ttc) - numberOrZero(invoice.total_ht)),
+          total_including_tax: moneyOrZero(invoice.total_ttc),
+        })),
+      } : response;
     },
   );
 }

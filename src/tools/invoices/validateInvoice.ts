@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { validateInvoice } from "../../dolibarr/invoices.js";
-import { toApiError } from "../../dolibarr/client.js";
+import { toApiError } from "../../dolibarr/errors.js";
 import { jsonContent } from "../shared/responses.js";
 
 export function registerValidateInvoice(server: McpServer): void {

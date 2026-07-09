@@ -2,9 +2,8 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createInvoice, addInvoiceLine, validateInvoice } from "../../dolibarr/invoices.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
-import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrId } from "../shared/normalization.js";
-import { jsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { lineSchema } from "../shared/schemas.js";
 
 const createInvoiceService = new DocumentCreationService({
@@ -14,7 +13,8 @@ const createInvoiceService = new DocumentCreationService({
 });
 
 export function registerCreateInvoice(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "create_invoice",
     {
       description: "Create a client invoice with lines. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
@@ -26,27 +26,21 @@ export function registerCreateInvoice(server: McpServer): void {
       },
     },
     async ({ client, date, lines, validate }) => {
-      try {
-        const result = await createInvoiceService.create({
-          thirdparty: client,
-          date,
-          lines,
-          validate,
-        });
-        return jsonContent(
-          "success" in result
-            ? {
-                success: true,
-                invoice_id: dolibarrId(result.id),
-                client: result.thirdparty,
-                validated: result.validated,
-                lines: result.lines,
-              }
-            : result,
-        );
-      } catch (err) {
-        return jsonContent(toApiError(err));
-      }
+      const result = await createInvoiceService.create({
+        thirdparty: client,
+        date,
+        lines,
+        validate,
+      });
+      return "success" in result
+        ? {
+            success: true,
+            invoice_id: dolibarrId(result.id),
+            client: result.thirdparty,
+            validated: result.validated,
+            lines: result.lines,
+          }
+        : result;
     },
   );
 }

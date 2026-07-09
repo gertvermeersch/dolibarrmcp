@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { closeProposal, getProposal, setProposalDraft, validateProposal } from "../../dolibarr/proposals.js";
-import { DolibarrApiError, toApiError } from "../../dolibarr/client.js";
-import { jsonContent } from "../shared/responses.js";
+import { DolibarrApiError } from "../../dolibarr/errors.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { statusCode } from "../shared/deleteGuards.js";
 
 function isAlreadyValidatedProposalError(err: unknown, proposalId: number): boolean {
@@ -22,7 +22,8 @@ function isAlreadyDraftProposalError(err: unknown, proposalId: number): boolean 
 }
 
 export function registerSetProposalStatus(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "set_proposal_status",
     {
       description: "Set a proposal status to draft, accepted, or refused. Accepted/refused handles Dolibarr's validate→close flow internally.",
@@ -36,52 +37,48 @@ export function registerSetProposalStatus(server: McpServer): void {
       },
     },
     async ({ proposal_id, status, note, note_private, note_public, notrigger }) => {
-      try {
-        if (status === "draft") {
-          const proposal = await getProposal(proposal_id);
-          if (statusCode(proposal.statut) === 0) {
-            return jsonContent({
-              success: true,
-              proposal_id,
-              status: "draft",
-              note: "Already draft.",
-            });
-          }
-
-          try {
-            await setProposalDraft(proposal_id);
-          } catch (err) {
-            if (!isAlreadyDraftProposalError(err, proposal_id)) throw err;
-          }
-
-          return jsonContent({
+      if (status === "draft") {
+        const proposal = await getProposal(proposal_id);
+        if (statusCode(proposal.statut) === 0) {
+          return {
             success: true,
             proposal_id,
             status: "draft",
-          });
+            note: "Already draft.",
+          };
         }
 
-        // Dolibarr requires a proposal to be validated before it can be closed
         try {
-          await validateProposal(proposal_id, { notrigger });
+          await setProposalDraft(proposal_id);
         } catch (err) {
-          if (!isAlreadyValidatedProposalError(err, proposal_id)) throw err;
+          if (!isAlreadyDraftProposalError(err, proposal_id)) throw err;
         }
 
-        await closeProposal(proposal_id, status, {
-          note_private: note_private ?? note,
-          note_public,
-          notrigger,
-        });
-
-        return jsonContent({
+        return {
           success: true,
           proposal_id,
-          status,
-        });
-      } catch (err) {
-        return jsonContent(toApiError(err));
+          status: "draft",
+        };
       }
+
+      // Dolibarr requires a proposal to be validated before it can be closed
+      try {
+        await validateProposal(proposal_id, { notrigger });
+      } catch (err) {
+        if (!isAlreadyValidatedProposalError(err, proposal_id)) throw err;
+      }
+
+      await closeProposal(proposal_id, status, {
+        note_private: note_private ?? note,
+        note_public,
+        notrigger,
+      });
+
+      return {
+        success: true,
+        proposal_id,
+        status,
+      };
     },
   );
 }

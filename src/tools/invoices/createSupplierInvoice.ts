@@ -2,9 +2,8 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createSupplierInvoice, addSupplierInvoiceLine, validateSupplierInvoice } from "../../dolibarr/supplierInvoices.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
-import { toApiError } from "../../dolibarr/client.js";
 import { dolibarrId } from "../shared/normalization.js";
-import { jsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { lineSchema } from "../shared/schemas.js";
 
 const createSupplierInvoiceService = new DocumentCreationService({
@@ -14,7 +13,8 @@ const createSupplierInvoiceService = new DocumentCreationService({
 });
 
 export function registerCreateSupplierInvoice(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "create_supplier_invoice",
     {
       description: "Create a supplier invoice with lines. Use product_ref for catalog products/services, or description with price and VAT for free-text lines.",
@@ -25,31 +25,26 @@ export function registerCreateSupplierInvoice(server: McpServer): void {
         lines: z.array(lineSchema).min(1),
         validate: z.boolean().default(false).describe("Validate the invoice immediately after creation"),
       },
+      errorContext: ({ supplier_invoice_ref }) => ({ supplierInvoiceRef: supplier_invoice_ref }),
     },
     async ({ supplier, supplier_invoice_ref, date, lines, validate }) => {
-      try {
-        const result = await createSupplierInvoiceService.create({
-          thirdparty: supplier,
-          refSupplier: supplier_invoice_ref,
-          date,
-          lines,
-          validate,
-        });
-        return jsonContent(
-          "success" in result
-            ? {
-                success: true,
-                invoice_id: dolibarrId(result.id),
-                supplier: result.thirdparty,
-                supplier_invoice_ref,
-                validated: result.validated,
-                lines: result.lines,
-              }
-            : result,
-        );
-      } catch (err) {
-        return jsonContent(toApiError(err, { supplierInvoiceRef: supplier_invoice_ref }));
-      }
+      const result = await createSupplierInvoiceService.create({
+        thirdparty: supplier,
+        refSupplier: supplier_invoice_ref,
+        date,
+        lines,
+        validate,
+      });
+      return "success" in result
+        ? {
+            success: true,
+            invoice_id: dolibarrId(result.id),
+            supplier: result.thirdparty,
+            supplier_invoice_ref,
+            validated: result.validated,
+            lines: result.lines,
+          }
+        : result;
     },
   );
 }

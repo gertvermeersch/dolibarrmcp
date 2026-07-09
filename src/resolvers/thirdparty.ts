@@ -1,4 +1,4 @@
-import { isDolibarrNotFoundError } from "../dolibarr/client.js";
+import { isDolibarrNotFoundError } from "../dolibarr/errors.js";
 import { getThirdparty, getThirdpartyType, searchThirdparties } from "../dolibarr/thirdparties.js";
 import type { McpError, ThirdpartyCandidate } from "../types/tools.js";
 

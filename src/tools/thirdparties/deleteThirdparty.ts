@@ -8,11 +8,10 @@ import { deleteThirdparty, getThirdparty } from "../../dolibarr/thirdparties.js"
 import {
   isDolibarrModuleUnavailableError,
   isDolibarrNotFoundError,
-  toApiError,
-} from "../../dolibarr/client.js";
+} from "../../dolibarr/errors.js";
 import { dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { cleanString } from "../shared/normalization.js";
-import { jsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { deleteDryRun, deletesDisabledResponse } from "../shared/deleteGuards.js";
 
 type LinkedDocumentCount = number | "unavailable";
@@ -73,7 +72,8 @@ function linkedDocumentsResponse(name: string | undefined, linked: LinkedDocumen
 }
 
 export function registerDeleteThirdparty(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "delete_thirdparty",
     {
       description: "Delete a thirdparty by numeric Dolibarr ID only. Never cascades linked documents.",
@@ -83,37 +83,33 @@ export function registerDeleteThirdparty(server: McpServer): void {
       },
     },
     async ({ thirdparty_id, confirm }) => {
-      try {
-        const disabled = deletesDisabledResponse();
-        if (disabled) return jsonContent(disabled);
+      const disabled = deletesDisabledResponse();
+      if (disabled) return disabled;
 
-        const thirdparty = await getThirdparty(thirdparty_id);
-        const name = cleanString(thirdparty.name);
-        const linked = await linkedDocumentCounts(thirdparty_id);
+      const thirdparty = await getThirdparty(thirdparty_id);
+      const name = cleanString(thirdparty.name);
+      const linked = await linkedDocumentCounts(thirdparty_id);
 
-        if (!confirm) {
-          return jsonContent(deleteDryRun({
-            entity_type: "thirdparty",
-            id: thirdparty_id,
-            name,
-            linked,
-          }));
-        }
-
-        if (hasLinkedDocuments(linked)) {
-          return jsonContent(linkedDocumentsResponse(name, linked));
-        }
-
-        await deleteThirdparty(thirdparty_id);
-
-        return jsonContent({
-          success: true,
-          deleted: true,
-          thirdparty_id,
+      if (!confirm) {
+        return deleteDryRun({
+          entity_type: "thirdparty",
+          id: thirdparty_id,
+          name,
+          linked,
         });
-      } catch (err) {
-        return jsonContent(toApiError(err));
       }
+
+      if (hasLinkedDocuments(linked)) {
+        return linkedDocumentsResponse(name, linked);
+      }
+
+      await deleteThirdparty(thirdparty_id);
+
+      return {
+        success: true,
+        deleted: true,
+        thirdparty_id,
+      };
     },
   );
 }

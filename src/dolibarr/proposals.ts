@@ -1,4 +1,5 @@
-import { dolibarr, isDolibarrNotFoundError } from "./client.js";
+import { dolibarr } from "./client.js";
+import { isDolibarrNotFoundError } from "./errors.js";
 import type { DolibarrProposal, DolibarrInvoiceLine } from "../types/dolibarr.js";
 
 export async function listProposals(params: string): Promise<DolibarrProposal[]> {

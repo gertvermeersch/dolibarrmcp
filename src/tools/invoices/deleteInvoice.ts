@@ -2,8 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { deleteInvoice, getInvoice, setInvoiceDraft } from "../../dolibarr/invoices.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
-import { toApiError } from "../../dolibarr/client.js";
-import { jsonContent } from "../shared/responses.js";
+import { registerJsonTool } from "../shared/registerJsonTool.js";
 import {
   deleteDryRun,
   deletesDisabledResponse,
@@ -12,7 +11,8 @@ import {
 } from "../shared/deleteGuards.js";
 
 export function registerDeleteInvoice(server: McpServer): void {
-  server.registerTool(
+  registerJsonTool(
+    server,
     "delete_invoice",
     {
       description: "Delete a client invoice by numeric Dolibarr ID only. Requires confirm:true and MCP_ALLOW_DELETES=true.",
@@ -24,40 +24,36 @@ export function registerDeleteInvoice(server: McpServer): void {
       },
     },
     async ({ invoice_id, confirm, reopen_if_validated, warehouse_id }) => {
-      try {
-        const disabled = deletesDisabledResponse();
-        if (disabled) return jsonContent(disabled);
+      const disabled = deletesDisabledResponse();
+      if (disabled) return disabled;
 
-        const invoice = await getInvoice(invoice_id);
-        const status = invoiceStatusLabel(invoice.statut);
+      const invoice = await getInvoice(invoice_id);
+      const status = invoiceStatusLabel(invoice.statut);
 
-        if (!confirm) {
-          return jsonContent(deleteDryRun({
-            entity_type: "invoice",
-            id: invoice_id,
-            ref: invoice.ref,
-            status,
-          }));
-        }
-
-        if (statusCode(invoice.statut) !== 0) {
-          if (!reopen_if_validated) {
-            return jsonContent(mustReopenResponse("Invoice", invoice.ref, "reopen_if_validated"));
-          }
-
-          await setInvoiceDraft(invoice_id, { warehouseId: warehouse_id });
-        }
-
-        await deleteInvoice(invoice_id);
-
-        return jsonContent({
-          success: true,
-          deleted: true,
-          invoice_id,
+      if (!confirm) {
+        return deleteDryRun({
+          entity_type: "invoice",
+          id: invoice_id,
+          ref: invoice.ref,
+          status,
         });
-      } catch (err) {
-        return jsonContent(toApiError(err));
       }
+
+      if (statusCode(invoice.statut) !== 0) {
+        if (!reopen_if_validated) {
+          return mustReopenResponse("Invoice", invoice.ref, "reopen_if_validated");
+        }
+
+        await setInvoiceDraft(invoice_id, { warehouseId: warehouse_id });
+      }
+
+      await deleteInvoice(invoice_id);
+
+      return {
+        success: true,
+        deleted: true,
+        invoice_id,
+      };
     },
   );
 }
