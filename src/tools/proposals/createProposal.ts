@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createProposal, addProposalLine, validateProposal } from "../../dolibarr/proposals.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
-import { dolibarrId } from "../shared/normalization.js";
+import { documentCreationResponse } from "../shared/documentCreationResponse.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { lineSchema } from "../shared/schemas.js";
 
@@ -32,15 +32,7 @@ export function registerCreateProposal(server: McpServer): void {
         lines,
         validate,
       });
-      return "success" in result
-        ? {
-            success: true,
-            proposal_id: dolibarrId(result.id),
-            client: result.thirdparty,
-            validated: result.validated,
-            lines: result.lines,
-          }
-        : result;
+      return documentCreationResponse(result, { idKey: "proposal_id", thirdpartyKey: "client" });
     },
   );
 }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createInvoice, addInvoiceLine, validateInvoice } from "../../dolibarr/invoices.js";
 import { DocumentCreationService } from "../../dolibarr/documents/documentCreationService.js";
-import { dolibarrId } from "../shared/normalization.js";
+import { documentCreationResponse } from "../shared/documentCreationResponse.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { lineSchema } from "../shared/schemas.js";
 
@@ -32,15 +32,7 @@ export function registerCreateInvoice(server: McpServer): void {
         lines,
         validate,
       });
-      return "success" in result
-        ? {
-            success: true,
-            invoice_id: dolibarrId(result.id),
-            client: result.thirdparty,
-            validated: result.validated,
-            lines: result.lines,
-          }
-        : result;
+      return documentCreationResponse(result, { idKey: "invoice_id", thirdpartyKey: "client" });
     },
   );
 }

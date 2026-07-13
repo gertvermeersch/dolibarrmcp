@@ -188,10 +188,10 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [x] Migrate simple search/read tools first to prove the shape (22 of 24 tools migrated).
   - [x] Preserve per-tool `toApiError` context via `errorContext`, such as supplier invoice duplicate-ref handling.
   - [x] `validate_invoice` and `validate_proposal` stay on manual `registerTool`: they merge the entity id into the idempotent-success error payload, which the wrapper does not model.
-- [ ] Generalize document creation tool registration.
-  - [ ] Keep `DocumentCreationService` as the workflow engine.
-  - [ ] Extract the repeated create-tool success mapping for invoices, supplier invoices, and proposals.
-  - [ ] Keep entity-specific input names and response field names explicit at the edge.
+- [x] Generalize document creation tool registration.
+  - [x] Keep `DocumentCreationService` as the workflow engine.
+  - [x] Extract the repeated create-tool success mapping for invoices, supplier invoices, and proposals (`src/tools/shared/documentCreationResponse.ts`).
+  - [x] Keep entity-specific input names and response field names explicit at the edge.
 - [x] Extract a shared "resolve by numeric ID or exact ref" helper (`src/tools/shared/resolveByIdOrRef.ts`).
   - [x] Cover client invoices, supplier invoices, and proposals.
   - [x] Support entity-specific reference filters, including supplier invoice `ref_supplier`.
