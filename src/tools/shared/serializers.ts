@@ -6,6 +6,11 @@ import {
   money,
   numberOrUndefined,
 } from "./normalization.js";
+import {
+  getThirdpartyClientFlag,
+  getThirdpartySupplierFlag,
+  getThirdpartyType,
+} from "../../dolibarr/thirdpartyType.js";
 import type {
   DolibarrInvoice,
   DolibarrInvoiceLine,
@@ -27,24 +32,6 @@ type SupplierInvoiceLineFields = {
   vat_rate?: unknown;
 };
 
-function thirdpartySupplierFlag(thirdparty: DolibarrThirdparty): number {
-  return Number(thirdparty.supplier ?? thirdparty.fournisseur ?? 0);
-}
-
-function thirdpartyClientFlag(thirdparty: DolibarrThirdparty): number {
-  return Number(thirdparty.client ?? 0);
-}
-
-function thirdpartyType(thirdparty: DolibarrThirdparty): "client" | "supplier" | "both" | "other" {
-  const isClient = thirdpartyClientFlag(thirdparty) > 0;
-  const isSupplier = thirdpartySupplierFlag(thirdparty) > 0;
-
-  if (isClient && isSupplier) return "both";
-  if (isSupplier) return "supplier";
-  if (isClient) return "client";
-  return "other";
-}
-
 export function thirdpartyNameMap(thirdparties: DolibarrThirdparty[]): Map<number, string> {
   return new Map(
     thirdparties
@@ -61,9 +48,9 @@ export function serializeThirdpartySummary(thirdparty: DolibarrThirdparty): Reco
   return compactObject({
     id: dolibarrId(thirdparty.id),
     name: cleanString(thirdparty.name),
-    type: thirdpartyType(thirdparty),
-    is_client: thirdpartyClientFlag(thirdparty) > 0,
-    is_supplier: thirdpartySupplierFlag(thirdparty) > 0,
+    type: getThirdpartyType(thirdparty),
+    is_client: getThirdpartyClientFlag(thirdparty) > 0,
+    is_supplier: getThirdpartySupplierFlag(thirdparty) > 0,
     email: cleanString(thirdparty.email),
     phone: cleanString(thirdparty.phone),
     town: cleanString(thirdparty.town),

@@ -204,9 +204,9 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [x] Keep HTTP request mechanics, timeout handling, and request/response logging in `client.ts`.
   - [x] Move module hints, Dolibarr error classification, and `toApiError` mapping into a dedicated error module (`src/dolibarr/errors.ts`; `DolibarrApiError` moved there too since the mapping owns it).
   - [x] Keep existing unit tests around the public error-mapping behavior (renamed `test/unit/client.test.ts` → `errors.test.ts`).
-- [ ] Centralize duplicate thirdparty type normalization.
-  - [ ] Move client/supplier/both/other logic into one domain helper.
-  - [ ] Reuse it from resolvers and serializers.
+- [x] Centralize duplicate thirdparty type normalization.
+  - [x] Move client/supplier/both/other logic into one domain helper (`src/dolibarr/thirdpartyType.ts`, pure and free of `client.js`).
+  - [x] Reuse it from resolvers and serializers (`thirdparties.ts` re-exports it for existing importers).
 - [ ] Add a reusable pagination helper for Dolibarr list endpoints.
   - [ ] Replace the page loops in revenue and receivables tools once the helper exists.
   - [ ] Reuse it for upcoming analytics and decision-support tools.
