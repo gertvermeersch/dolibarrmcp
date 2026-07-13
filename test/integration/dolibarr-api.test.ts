@@ -59,6 +59,7 @@ async function loadApi() {
     ...(await import("../../src/tools/invoices/getSupplierInvoiceDetail.js")),
     ...(await import("../../src/tools/proposals/setProposalStatus.js")),
     ...(await import("../../src/tools/search/searchAcross.js")),
+    ...(await import("../../src/tools/search/searchDocumentContent.js")),
     ...(await import("../../src/tools/thirdparties/getClientOverview.js")),
     ...(await import("../../src/tools/thirdparties/searchThirdparties.js")),
     ...(await import("../../src/dolibarr/errors.js"))
@@ -816,6 +817,7 @@ test("reads client overview, receivables, monthly revenue, and cross-search from
     registerGetMonthlyRevenue,
     registerGetOutstandingReceivables,
     registerSearchAcross,
+    registerSearchDocumentContent,
     validateInvoice,
   } = await loadApi();
   const searchToken = uniqueRef("Read Tools");
@@ -927,6 +929,25 @@ test("reads client overview, receivables, monthly revenue, and cross-search from
     assert.ok(
       (searchAcross.invoices as Array<Record<string, unknown>>).some((foundInvoice) => foundInvoice.id === invoiceId),
       `Expected search_across to include invoice ${invoiceRef}`,
+    );
+
+    const contentSearch = await callJsonTool<Record<string, unknown>>(
+      registerSearchDocumentContent,
+      "search_document_content",
+      {
+        query: searchToken,
+        max_documents_per_type: 10,
+      },
+    );
+    assert.ok(
+      (contentSearch.matches as Array<Record<string, unknown>>).some((match) => (
+        match.document_id === invoiceId
+        && match.document_ref === invoiceRef
+        && match.thirdparty_name === clientName
+        && typeof match.line_id === "number"
+        && String(match.description).includes(searchToken)
+      )),
+      `Expected search_document_content to include line content from invoice ${invoiceRef}`,
     );
   } catch (err) {
     testError = err;

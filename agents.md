@@ -169,6 +169,7 @@ invoice-like or proposal-like documents with thirdparty resolution and line item
 - `get_monthly_revenue` (read)
 - `get_outstanding_receivables` (read)
 - `search_across` (read)
+- `search_document_content` (read)
 - `search_products` (read)
 - `search_services` (read)
 - `search_thirdparties` (read)

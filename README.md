@@ -111,6 +111,7 @@ Read tools:
 - `get_monthly_revenue`
 - `get_outstanding_receivables`
 - `search_across`
+- `search_document_content`
 - `search_products`
 - `search_services`
 - `search_thirdparties`

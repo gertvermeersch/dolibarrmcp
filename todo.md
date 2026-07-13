@@ -22,11 +22,11 @@ Generated from a project scan on 2026-05-20.
 
 ## Search improvements
 
-- [ ] Develop content search across document lines.
-  - [ ] Search for text contained in proposal, order, client invoice, and supplier invoice lines.
-  - [ ] Include matched document refs, thirdparty names, line IDs, product/service refs where available, and matched line descriptions.
-  - [ ] Decide whether to extend `search_across` or expose a separate `search_document_content` tool.
-  - [ ] Verify Dolibarr API/filter support for line-description searches, falling back to safe bounded fetch-and-filter only if needed.
+- [x] Develop content search across document lines.
+  - [x] Search for text contained in proposal, order, client invoice, and supplier invoice lines.
+  - [x] Include matched document refs, thirdparty names, line IDs, product/service refs where available, and matched line descriptions.
+  - [x] Expose a separate `search_document_content` tool so bounded line scanning stays distinct from lean `search_across` results.
+  - [x] Dolibarr document-list `sqlfilters` target header table aliases rather than joined line descriptions; use a safe bounded recent-document fetch-and-filter with scan/truncation metadata.
 
 ## Existing implementation to verify
 

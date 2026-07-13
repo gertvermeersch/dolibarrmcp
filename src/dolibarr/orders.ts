@@ -13,3 +13,7 @@ export async function listOrders(
     throw err;
   }
 }
+
+export async function getOrder(id: number): Promise<DolibarrOrder> {
+  return dolibarr.get<DolibarrOrder>(`/orders/${id}?includeLines=1`);
+}

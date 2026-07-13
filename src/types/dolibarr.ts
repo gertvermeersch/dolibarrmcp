@@ -83,6 +83,7 @@ export interface DolibarrOrder {
   total_ttc?: number;
   statut?: number;
   status?: number;
+  lines?: DolibarrInvoiceLine[];
 }
 
 export interface DolibarrProduct {

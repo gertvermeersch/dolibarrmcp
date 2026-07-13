@@ -19,6 +19,7 @@ import { registerGetProposalDetail } from "./tools/proposals/getProposalDetail.j
 import { registerSetProposalStatus } from "./tools/proposals/setProposalStatus.js";
 import { registerValidateProposal } from "./tools/proposals/validateProposal.js";
 import { registerSearchAcross } from "./tools/search/searchAcross.js";
+import { registerSearchDocumentContent } from "./tools/search/searchDocumentContent.js";
 import { registerCreateThirdparty } from "./tools/thirdparties/createThirdparty.js";
 import { registerDeleteThirdparty } from "./tools/thirdparties/deleteThirdparty.js";
 import { registerGetClientOverview } from "./tools/thirdparties/getClientOverview.js";
@@ -50,6 +51,7 @@ export function registerTools(server: McpServer): void {
   registerDeleteProposal(server);
 
   registerSearchAcross(server);
+  registerSearchDocumentContent(server);
 
   registerSearchThirdparties(server);
   registerCreateThirdparty(server);
