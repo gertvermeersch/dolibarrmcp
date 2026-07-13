@@ -2,10 +2,9 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getSupplierInvoice, listSupplierInvoices } from "../../dolibarr/supplierInvoices.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
-import { isDolibarrNotFoundError } from "../../dolibarr/errors.js";
-import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
+import { resolveByIdOrRef } from "../shared/resolveByIdOrRef.js";
 import {
   dolibarrId,
   isoDateFromTimestamp,
@@ -27,24 +26,12 @@ function supplierRef(invoice: SupplierInvoice): string | undefined {
   return invoice.ref_supplier ?? invoice.refSupplier ?? invoice.supplier_ref;
 }
 
-async function resolveSupplierInvoice(value: string): Promise<DolibarrInvoice | undefined> {
-  const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) {
-    try {
-      return await getSupplierInvoice(Number(trimmed));
-    } catch (err) {
-      if (isDolibarrNotFoundError(err)) return undefined;
-      throw err;
-    }
-  }
-
-  const exactRef = dolibarrStringLiteral(trimmed);
-  const invoices = await listSupplierInvoices(dolibarrQueryString({
-    sqlfilters: `(t.ref:=:${exactRef}) OR (t.ref_supplier:=:${exactRef})`,
-    limit: "1",
-  }));
-
-  return invoices[0] ? getSupplierInvoice(Number(invoices[0].id)) : undefined;
+function resolveSupplierInvoice(value: string): Promise<DolibarrInvoice | undefined> {
+  return resolveByIdOrRef(value, {
+    getById: getSupplierInvoice,
+    list: listSupplierInvoices,
+    refColumns: ["t.ref", "t.ref_supplier"],
+  });
 }
 
 export function registerGetSupplierInvoiceDetail(server: McpServer): void {

@@ -192,10 +192,10 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [ ] Keep `DocumentCreationService` as the workflow engine.
   - [ ] Extract the repeated create-tool success mapping for invoices, supplier invoices, and proposals.
   - [ ] Keep entity-specific input names and response field names explicit at the edge.
-- [ ] Extract a shared "resolve by numeric ID or exact ref" helper.
-  - [ ] Cover client invoices, supplier invoices, and proposals.
-  - [ ] Support entity-specific reference filters, including supplier invoice `ref_supplier`.
-  - [ ] Return `undefined` on Dolibarr 404 while still throwing unexpected API errors.
+- [x] Extract a shared "resolve by numeric ID or exact ref" helper (`src/tools/shared/resolveByIdOrRef.ts`).
+  - [x] Cover client invoices, supplier invoices, and proposals.
+  - [x] Support entity-specific reference filters, including supplier invoice `ref_supplier`.
+  - [x] Return `undefined` on Dolibarr 404 while still throwing unexpected API errors.
 - [ ] Consolidate guarded document delete flows.
   - [ ] Share delete-enabled checks, dry-run response construction, draft/reopen guards, delete call, and success response.
   - [ ] Keep thirdparty delete separate because it has linked-document prechecks.
@@ -212,7 +212,7 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [ ] Reuse it for upcoming analytics and decision-support tools.
 - [ ] Add focused unit tests as refactors land.
   - [ ] Cover the MCP wrapper's error path.
-  - [ ] Cover ID/ref resolution behavior.
+  - [x] Cover ID/ref resolution behavior (`test/unit/resolveByIdOrRef.test.ts`).
   - [ ] Cover guarded delete helper behavior without calling the real API.
 
 ## Test and quality workflow

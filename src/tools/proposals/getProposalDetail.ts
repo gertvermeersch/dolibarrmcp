@@ -2,31 +2,15 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getProposal, listProposals } from "../../dolibarr/proposals.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
-import { isDolibarrNotFoundError } from "../../dolibarr/errors.js";
-import { dolibarrQueryString, dolibarrStringLiteral } from "../../dolibarr/sqlFilters.js";
 import { proposalStatusLabel } from "../../dolibarr/statusLabels.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
+import { resolveByIdOrRef } from "../shared/resolveByIdOrRef.js";
 import { dolibarrId, isoDateFromTimestamp, money } from "../shared/normalization.js";
 import { serializeLineItem, serializeThirdpartyIdentity } from "../shared/serializers.js";
 import type { DolibarrProposal } from "../../types/dolibarr.js";
 
-async function resolveProposal(value: string): Promise<DolibarrProposal | undefined> {
-  const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) {
-    try {
-      return await getProposal(Number(trimmed));
-    } catch (err) {
-      if (isDolibarrNotFoundError(err)) return undefined;
-      throw err;
-    }
-  }
-
-  const proposals = await listProposals(dolibarrQueryString({
-    sqlfilters: `(t.ref:=:${dolibarrStringLiteral(trimmed)})`,
-    limit: "1",
-  }));
-
-  return proposals[0] ? getProposal(Number(proposals[0].id)) : undefined;
+function resolveProposal(value: string): Promise<DolibarrProposal | undefined> {
+  return resolveByIdOrRef(value, { getById: getProposal, list: listProposals });
 }
 
 export function registerGetProposalDetail(server: McpServer): void {
