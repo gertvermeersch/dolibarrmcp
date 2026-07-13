@@ -7,12 +7,7 @@ import {
 } from "../../dolibarr/supplierInvoices.js";
 import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
-import {
-  deleteDryRun,
-  deletesDisabledResponse,
-  mustReopenResponse,
-  statusCode,
-} from "../shared/deleteGuards.js";
+import { runGuardedDelete } from "../shared/deleteGuards.js";
 
 export function registerDeleteSupplierInvoice(server: McpServer): void {
   registerJsonTool(
@@ -26,37 +21,19 @@ export function registerDeleteSupplierInvoice(server: McpServer): void {
         reopen_if_validated: z.boolean().default(false).describe("Reopen non-draft invoices before deleting."),
       },
     },
-    async ({ supplier_invoice_id, confirm, reopen_if_validated }) => {
-      const disabled = deletesDisabledResponse();
-      if (disabled) return disabled;
-
-      const invoice = await getSupplierInvoice(supplier_invoice_id);
-      const status = invoiceStatusLabel(invoice.statut);
-
-      if (!confirm) {
-        return deleteDryRun({
-          entity_type: "supplier_invoice",
-          id: supplier_invoice_id,
-          ref: invoice.ref,
-          status,
-        });
-      }
-
-      if (statusCode(invoice.statut) !== 0) {
-        if (!reopen_if_validated) {
-          return mustReopenResponse("Supplier invoice", invoice.ref, "reopen_if_validated");
-        }
-
-        await setSupplierInvoiceDraft(supplier_invoice_id);
-      }
-
-      await deleteSupplierInvoice(supplier_invoice_id);
-
-      return {
-        success: true,
-        deleted: true,
-        supplier_invoice_id,
-      };
-    },
+    async ({ supplier_invoice_id, confirm, reopen_if_validated }) =>
+      runGuardedDelete({
+        entityType: "supplier_invoice",
+        entityLabel: "Supplier invoice",
+        idKey: "supplier_invoice_id",
+        reopenFlag: "reopen_if_validated",
+        id: supplier_invoice_id,
+        confirm,
+        reopen: reopen_if_validated,
+        fetch: getSupplierInvoice,
+        statusLabel: (invoice) => invoiceStatusLabel(invoice.statut),
+        reopenToDraft: setSupplierInvoiceDraft,
+        remove: deleteSupplierInvoice,
+      }),
   );
 }

@@ -196,10 +196,10 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [x] Cover client invoices, supplier invoices, and proposals.
   - [x] Support entity-specific reference filters, including supplier invoice `ref_supplier`.
   - [x] Return `undefined` on Dolibarr 404 while still throwing unexpected API errors.
-- [ ] Consolidate guarded document delete flows.
-  - [ ] Share delete-enabled checks, dry-run response construction, draft/reopen guards, delete call, and success response.
-  - [ ] Keep thirdparty delete separate because it has linked-document prechecks.
-  - [ ] Keep reopen options entity-specific, especially customer invoice `warehouse_id`.
+- [x] Consolidate guarded document delete flows (`runGuardedDelete` in `src/tools/shared/deleteGuards.ts`).
+  - [x] Share delete-enabled checks, dry-run response construction, draft/reopen guards, delete call, and success response.
+  - [x] Keep thirdparty delete separate because it has linked-document prechecks.
+  - [x] Keep reopen options entity-specific, especially customer invoice `warehouse_id`.
 - [x] Split Dolibarr error mapping out of `src/dolibarr/client.ts`.
   - [x] Keep HTTP request mechanics, timeout handling, and request/response logging in `client.ts`.
   - [x] Move module hints, Dolibarr error classification, and `toApiError` mapping into a dedicated error module (`src/dolibarr/errors.ts`; `DolibarrApiError` moved there too since the mapping owns it).
@@ -213,7 +213,7 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
 - [ ] Add focused unit tests as refactors land.
   - [ ] Cover the MCP wrapper's error path.
   - [x] Cover ID/ref resolution behavior (`test/unit/resolveByIdOrRef.test.ts`).
-  - [ ] Cover guarded delete helper behavior without calling the real API.
+  - [x] Cover guarded delete helper behavior without calling the real API (`test/unit/runGuardedDelete.test.ts`).
 
 ## Test and quality workflow
 

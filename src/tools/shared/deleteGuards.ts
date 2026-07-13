@@ -50,3 +50,62 @@ export function mustReopenResponse(
     message: `${label} is not draft. Re-run with ${reopenFlag}:true, or set it to draft first.`,
   };
 }
+
+export interface GuardedDeleteOptions<T extends { ref?: string; statut?: unknown }> {
+  /** Machine-facing entity type in the dry-run payload, e.g. "invoice". */
+  entityType: string;
+  /** Human-facing entity label in the must-reopen message, e.g. "Invoice". */
+  entityLabel: string;
+  /** Response key for the deleted document's ID, e.g. "invoice_id". */
+  idKey: string;
+  /** Input flag name to suggest when a non-draft document must be reopened. */
+  reopenFlag: string;
+  id: number;
+  confirm: boolean;
+  /** Whether the caller opted in to reopening a non-draft document. */
+  reopen: boolean;
+  fetch: (id: number) => Promise<T>;
+  statusLabel: (entity: T) => string | undefined;
+  /** Reopen a non-draft document to draft; captures entity-specific options. */
+  reopenToDraft: (id: number) => Promise<unknown>;
+  remove: (id: number) => Promise<void>;
+}
+
+/**
+ * Run the shared guarded document delete flow: enablement check, dry run,
+ * draft/reopen guard, delete, and success response. Entity-specific concerns
+ * (reopen options, status labels, ID field name) are supplied by the caller.
+ */
+export async function runGuardedDelete<T extends { ref?: string; statut?: unknown }>(
+  options: GuardedDeleteOptions<T>,
+): Promise<Record<string, unknown>> {
+  const disabled = deletesDisabledResponse();
+  if (disabled) return disabled;
+
+  const entity = await options.fetch(options.id);
+
+  if (!options.confirm) {
+    return deleteDryRun({
+      entity_type: options.entityType,
+      id: options.id,
+      ref: entity.ref,
+      status: options.statusLabel(entity),
+    });
+  }
+
+  if (statusCode(entity.statut) !== 0) {
+    if (!options.reopen) {
+      return mustReopenResponse(options.entityLabel, entity.ref, options.reopenFlag);
+    }
+
+    await options.reopenToDraft(options.id);
+  }
+
+  await options.remove(options.id);
+
+  return {
+    success: true,
+    deleted: true,
+    [options.idKey]: options.id,
+  };
+}
