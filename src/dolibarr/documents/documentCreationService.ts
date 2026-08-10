@@ -2,7 +2,10 @@ import { resolveLine, type ResolveLineError } from "../../resolvers/product.js";
 import { resolveThirdparty } from "../../resolvers/thirdparty.js";
 import type { DolibarrInvoiceLine } from "../../types/dolibarr.js";
 import type { LineItemInput, LineResolution, McpError } from "../../types/tools.js";
-import { isIsoDateString } from "../../tools/shared/normalization.js";
+import {
+  isIsoDateString,
+  unixTimestampFromIsoDate,
+} from "../../tools/shared/normalization.js";
 
 export interface DocumentCreationInput {
   thirdparty: string;
@@ -33,7 +36,7 @@ export type DocumentCreationResult =
 interface DocumentApi {
   create(data: {
     socid: number;
-    date: string;
+    date: number;
     ref_supplier?: string;
     lines?: Partial<DolibarrInvoiceLine>[];
   }): Promise<number>;
@@ -80,7 +83,7 @@ export class DocumentCreationService {
 
     const id = await this.api.create({
       socid: resolvedThirdparty.id,
-      date: input.date,
+      date: unixTimestampFromIsoDate(input.date),
       ...(input.refSupplier ? { ref_supplier: input.refSupplier } : {}),
     });
 

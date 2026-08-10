@@ -12,7 +12,7 @@ export async function listInvoices(params: string): Promise<DolibarrInvoice[]> {
 
 export async function createInvoice(data: {
   socid: number;
-  date: string;
+  date: number;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
   return dolibarr.post<number>("/invoices", data);

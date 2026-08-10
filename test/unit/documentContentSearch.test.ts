@@ -46,7 +46,12 @@ test("searches descriptions across every supported document type", async () => {
       id: 1,
       ref: "PR-1",
       socid: 10,
-      lines: [{ id: 101, desc: "Proposal needle work", product_ref: "SERV-1" } as never],
+      lines: [{
+        id: 101,
+        desc: "Proposal needle work",
+        product_ref: "SERV-1",
+        total_ht: "123.456",
+      } as never],
     }],
     order: [{
       id: 2,
@@ -80,6 +85,7 @@ test("searches descriptions across every supported document type", async () => {
     line_id: 101,
     product_ref: "SERV-1",
     description: "Proposal needle work",
+    total_excluding_tax: 123.46,
     thirdparty_name: "Client BV",
   });
   assert.equal(

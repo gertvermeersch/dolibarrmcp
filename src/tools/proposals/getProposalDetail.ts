@@ -40,7 +40,7 @@ export function registerGetProposalDetail(server: McpServer): void {
         status: proposalStatusLabel(proposal.statut),
         dates: {
           proposal: isoDateFromTimestamp(proposal.date),
-          valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
+          valid_until: isoDateFromTimestamp(proposal.fin_validite),
         },
         totals: {
           total_excluding_tax: money(proposal.total_ht),

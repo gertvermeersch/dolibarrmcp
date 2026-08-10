@@ -110,6 +110,16 @@ export function isIsoDateString(value: string): boolean {
   return true;
 }
 
+export function unixTimestampFromIsoDate(value: string): number {
+  if (!isIsoDateString(value)) {
+    throw new Error(`Invalid ISO date '${value}'.`);
+  }
+
+  // Noon UTC keeps the calendar date stable across the practical range of
+  // Dolibarr server timezones when it formats the timestamp as a local date.
+  return Math.floor(new Date(`${value}T12:00:00Z`).getTime() / 1000);
+}
+
 export function isPaidInvoice(invoice: DolibarrInvoice): boolean {
   const rawInvoice = invoice as DolibarrInvoice & Record<string, unknown>;
   return Number(invoice.statut) === 2 || Number(rawInvoice.paye ?? 0) === 1;

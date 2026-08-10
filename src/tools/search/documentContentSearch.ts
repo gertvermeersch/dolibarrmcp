@@ -1,5 +1,5 @@
 import { DolibarrApiError } from "../../dolibarr/errors.js";
-import { cleanString, dolibarrId, numberOrUndefined } from "../shared/normalization.js";
+import { cleanString, dolibarrId, money, numberOrUndefined } from "../shared/normalization.js";
 import type {
   DolibarrInvoiceLine,
   DolibarrOrder,
@@ -41,6 +41,7 @@ type PendingMatch = {
   line_id: number;
   product_ref?: string;
   description: string;
+  total_excluding_tax?: number;
 };
 
 type ScanSummary = {
@@ -132,6 +133,7 @@ async function scanDomain(
           line_id: lineId,
           product_ref: lineProductRef(line),
           description,
+          total_excluding_tax: money(line.total_ht),
         });
       }
     }

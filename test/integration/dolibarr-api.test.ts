@@ -277,6 +277,10 @@ test("creates and validates a proposal with an existing service line and a free-
     assert.equal(Number(proposal.id), proposalId);
     assert.equal(Number(proposal.socid), clientId);
     assert.equal(dolibarrDateFromTimestamp(proposal.date), "2026-05-19");
+    assert.equal(
+      dolibarrDateFromTimestamp(proposal.fin_validite),
+      "2026-06-18",
+    );
     assert.ok(Number(proposal.statut) > 0, `Expected validated proposal status, got ${proposal.statut}`);
     assert.ok((proposal.lines?.length ?? 0) >= 2);
     const catalogLine = proposal.lines?.find((line) => Number(line.fk_product) === Number(catalogService.id));
@@ -945,6 +949,7 @@ test("reads client overview, receivables, monthly revenue, and cross-search from
         && match.document_ref === invoiceRef
         && match.thirdparty_name === clientName
         && typeof match.line_id === "number"
+        && match.total_excluding_tax === 123.45
         && String(match.description).includes(searchToken)
       )),
       `Expected search_document_content to include line content from invoice ${invoiceRef}`,

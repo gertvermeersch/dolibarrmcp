@@ -82,6 +82,7 @@ export function serializeLineItem(line: DolibarrInvoiceLine): Record<string, unk
     description: cleanString(line.desc) ?? cleanString(supplierLine.description),
     qty: numberOrUndefined(line.qty),
     unit_price: money(line.subprice ?? supplierLine.pu_ht),
+    discount_percent: numberOrUndefined(line.remise_percent),
     vat_rate: numberOrUndefined(line.tva_tx ?? supplierLine.vat_rate),
     total_excluding_tax: money(line.total_ht),
     total_including_tax: money(line.total_ttc),
@@ -126,7 +127,7 @@ export function serializeProposalSearchSummary(
 ): Record<string, unknown> {
   return compactObject({
     ...serializeClientDocumentSummary(proposal, status, clientNames),
-    valid_until: isoDateFromTimestamp(proposal.date_fin_validite),
+    valid_until: isoDateFromTimestamp(proposal.fin_validite),
   });
 }
 

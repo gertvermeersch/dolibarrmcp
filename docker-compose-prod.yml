@@ -1,0 +1,14 @@
+services:
+  dolibarr-mcp:
+    build:
+      context: .
+      target: prod
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src
+    env_file:
+      - .env.prod
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

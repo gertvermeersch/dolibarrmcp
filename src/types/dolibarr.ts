@@ -56,6 +56,7 @@ export interface DolibarrInvoiceLine {
   desc: string;
   qty: number;
   subprice: number; // unit price excl. tax
+  remise_percent?: number; // discount percentage applied to the line
   tva_tx: number;   // VAT rate
   total_ht: number;
   total_ttc: number;
@@ -66,7 +67,7 @@ export interface DolibarrProposal {
   ref: string;
   socid: number;
   date: number;
-  date_fin_validite: number;
+  fin_validite: number;
   total_ht: number;
   total_ttc: number;
   statut: number; // 0=draft, 1=validated, 2=signed, 3=refused, 4=billed

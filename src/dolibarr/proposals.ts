@@ -2,6 +2,8 @@ import { dolibarr } from "./client.js";
 import { isDolibarrNotFoundError } from "./errors.js";
 import type { DolibarrProposal, DolibarrInvoiceLine } from "../types/dolibarr.js";
 
+export const DEFAULT_PROPOSAL_VALIDITY_DAYS = 30;
+
 export async function listProposals(params: string): Promise<DolibarrProposal[]> {
   try {
     return await dolibarr.get<DolibarrProposal[]>(`/proposals?${params}`);
@@ -13,10 +15,14 @@ export async function listProposals(params: string): Promise<DolibarrProposal[]>
 
 export async function createProposal(data: {
   socid: number;
-  date: string;
+  date: number;
+  duree_validite?: number;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
-  return dolibarr.post<number>("/proposals", data);
+  return dolibarr.post<number>("/proposals", {
+    duree_validite: DEFAULT_PROPOSAL_VALIDITY_DAYS,
+    ...data,
+  });
 }
 
 export async function addProposalLine(

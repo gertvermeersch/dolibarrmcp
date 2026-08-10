@@ -7,6 +7,7 @@ import {
   isoDateFromTimestamp,
   money,
   remainingToPay,
+  unixTimestampFromIsoDate,
 } from "../../src/tools/shared/normalization.js";
 import {
   serializeCatalogItem,
@@ -36,6 +37,11 @@ test("validates date-only input before sending it to Dolibarr", () => {
   assert.equal(isIsoDateString("2026-07-05"), true);
   assert.equal(isIsoDateString("2026-02-31"), false);
   assert.equal(isIsoDateString("2026-7-5"), false);
+});
+
+test("converts date-only input to a Dolibarr Unix timestamp", () => {
+  assert.equal(unixTimestampFromIsoDate("2026-05-19"), Date.UTC(2026, 4, 19, 12) / 1000);
+  assert.throws(() => unixTimestampFromIsoDate("2026-02-31"), /Invalid ISO date/);
 });
 
 test("keeps Dolibarr IDs numeric when the API returns strings", () => {
@@ -80,6 +86,7 @@ test("serializes line items without raw product IDs and with numeric values", ()
     desc: "Example\r\nrepair service",
     qty: "2",
     subprice: "40.00000000",
+    remise_percent: "12.50000000",
     tva_tx: "0.000",
     total_ht: "80.00000000",
     total_ttc: "80.00000000",
@@ -92,6 +99,7 @@ test("serializes line items without raw product IDs and with numeric values", ()
   assert.equal(serialized.label, "Example repair service");
   assert.equal(serialized.qty, 2);
   assert.equal(serialized.unit_price, 40);
+  assert.equal(serialized.discount_percent, 12.5);
   assert.equal(serialized.vat_rate, 0);
   assert.equal(serialized.total_excluding_tax, 80);
   assert.equal(Object.hasOwn(serialized, "product_id"), false);
