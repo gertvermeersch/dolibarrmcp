@@ -126,6 +126,15 @@ Implementation plan:
   - [ ] Document draft-only restrictions for document update tools.
 - [ ] Consider catalog create tools after update support is stable.
   - [ ] `create_product` and `create_service`.
+
+## Invoice payments
+
+- [x] Add `mark_invoice_paid` for validated client and supplier invoices.
+- [x] Support status-only closing through each invoice API's `/settopaid` endpoint.
+- [x] Optionally create a full remaining-balance payment through `/payments` and close atomically.
+- [x] Verify an already-linked payment by reference or payment number before closing.
+- [x] Document that this Dolibarr REST version cannot newly allocate an existing payment to an invoice.
+- [ ] Verify payment creation against a disposable invoice on the real development instance, including cleanup of the generated payment and bank entry.
 - [ ] Decide the public MCP delete policy before exposing destructive tools.
   - [ ] Prefer guarded deletes such as `delete_invoice`, `delete_supplier_invoice`, `delete_proposal`, and `delete_thirdparty` with an explicit `confirm: true` input.
   - [ ] Refuse deletion of validated/posted business documents unless Dolibarr supports the operation safely and the tool explains the restriction in its error payload.

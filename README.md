@@ -123,11 +123,24 @@ Write tools:
 - `create_invoice`
 - `create_supplier_invoice`
 - `validate_invoice`
+- `mark_invoice_paid`
 - `create_proposal`
 - `validate_proposal`
 - `set_proposal_status`
 
 See `todo.md` for the current implementation and verification checklist.
+
+### Marking invoices paid
+
+`mark_invoice_paid` handles both client and supplier invoices. The invoice must already be
+validated. With no `payment` input it only marks the invoice paid. With
+`payment.mode: "create"`, it creates a payment for the remaining balance and asks Dolibarr to
+close the invoice in the same transaction. A payment type ID and bank account ID are required.
+
+Dolibarr's invoice REST APIs can list payments already allocated to an invoice, but cannot add
+a new allocation for a previously created payment. `payment.mode: "existing"` therefore
+verifies that the supplied payment reference or number is already linked before marking the
+invoice paid. Link an unallocated existing payment in the Dolibarr UI first.
 
 ## Project Structure
 

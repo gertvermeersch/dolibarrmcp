@@ -62,6 +62,17 @@ export interface DolibarrInvoiceLine {
   total_ttc: number;
 }
 
+export interface DolibarrInvoicePayment {
+  amount: number | string;
+  date: number | string;
+  num?: string;
+  ref: string;
+  ref_ext?: string;
+  fk_bank_line?: number;
+  type: string;
+  typeline?: string;
+}
+
 export interface DolibarrProposal {
   id: number;
   ref: string;

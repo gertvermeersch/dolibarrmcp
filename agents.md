@@ -181,6 +181,7 @@ invoice-like or proposal-like documents with thirdparty resolution and line item
 - `create_proposal` (write)
 - `validate_proposal` (write)
 - `set_proposal_status` (write)
+- `mark_invoice_paid` (write; client and supplier invoices, with optional payment creation)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver
 - `dolibarr/client.ts` — fetch wrapper + error normalisation

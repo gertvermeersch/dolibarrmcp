@@ -10,6 +10,7 @@ import { registerGetInvoiceDetail } from "./tools/invoices/getInvoiceDetail.js";
 import { registerGetMonthlyRevenue } from "./tools/invoices/getMonthlyRevenue.js";
 import { registerGetOutstandingReceivables } from "./tools/invoices/getOutstandingReceivables.js";
 import { registerGetSupplierInvoiceDetail } from "./tools/invoices/getSupplierInvoiceDetail.js";
+import { registerMarkInvoicePaid } from "./tools/invoices/markInvoicePaid.js";
 import { registerSetInvoiceStatus } from "./tools/invoices/setInvoiceStatus.js";
 import { registerSetSupplierInvoiceStatus } from "./tools/invoices/setSupplierInvoiceStatus.js";
 import { registerValidateInvoice } from "./tools/invoices/validateInvoice.js";
@@ -37,6 +38,7 @@ export function registerTools(server: McpServer): void {
   registerValidateInvoice(server);
   registerSetInvoiceStatus(server);
   registerSetSupplierInvoiceStatus(server);
+  registerMarkInvoicePaid(server);
   registerDeleteInvoice(server);
   registerDeleteSupplierInvoice(server);
   registerGetInvoiceDetail(server);

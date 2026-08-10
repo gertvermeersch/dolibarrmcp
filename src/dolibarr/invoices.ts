@@ -1,6 +1,10 @@
 import { dolibarr } from "./client.js";
 import { config } from "../config.js";
-import type { DolibarrInvoice, DolibarrInvoiceLine } from "../types/dolibarr.js";
+import type {
+  DolibarrInvoice,
+  DolibarrInvoiceLine,
+  DolibarrInvoicePayment,
+} from "../types/dolibarr.js";
 
 export async function getInvoice(id: number): Promise<DolibarrInvoice> {
   return dolibarr.get<DolibarrInvoice>(`/invoices/${id}?includeLines=1`);
@@ -30,6 +34,38 @@ export async function validateInvoice(
   options: { notrigger?: number } = {},
 ): Promise<void> {
   await dolibarr.post(`/invoices/${invoiceId}/validate`, { notrigger: options.notrigger ?? 0 });
+}
+
+export async function getInvoicePayments(invoiceId: number): Promise<DolibarrInvoicePayment[]> {
+  return dolibarr.get<DolibarrInvoicePayment[]>(`/invoices/${invoiceId}/payments`);
+}
+
+export async function createInvoicePayment(
+  invoiceId: number,
+  data: {
+    datepaye: number;
+    paymentid: number;
+    accountid: number;
+    num_payment?: string;
+    comment?: string;
+    chqemetteur?: string;
+    chqbank?: string;
+  },
+): Promise<number> {
+  return dolibarr.post<number>(`/invoices/${invoiceId}/payments`, {
+    ...data,
+    closepaidinvoices: "yes",
+  });
+}
+
+export async function setInvoicePaid(
+  invoiceId: number,
+  options: { closeCode?: string; closeNote?: string } = {},
+): Promise<DolibarrInvoice> {
+  return dolibarr.post<DolibarrInvoice>(`/invoices/${invoiceId}/settopaid`, {
+    close_code: options.closeCode ?? "",
+    close_note: options.closeNote ?? "",
+  });
 }
 
 export async function setInvoiceDraft(
