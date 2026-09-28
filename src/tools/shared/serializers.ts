@@ -102,6 +102,18 @@ export function serializeCatalogItem(item: DolibarrProduct): Record<string, unkn
   });
 }
 
+export function serializeCatalogItemDetail(item: DolibarrProduct): Record<string, unknown> {
+  return compactObject({
+    ...serializeCatalogItem(item),
+    description: cleanString(item.description),
+    price_including_tax: money(item.price_ttc),
+    on_sale: numberOrUndefined(item.status) === 1,
+    on_purchase: numberOrUndefined(item.status_buy) === 1,
+    note_public: cleanString(item.note_public),
+    note_private: cleanString(item.note_private),
+  });
+}
+
 export function serializeClientDocumentSummary(
   document: DolibarrInvoice | DolibarrProposal | DolibarrOrder,
   status: string,

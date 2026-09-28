@@ -37,3 +37,27 @@ export async function searchProducts(query: string): Promise<DolibarrProduct[]> 
 export async function searchServices(query: string): Promise<DolibarrProduct[]> {
   return searchCatalog(query, "services");
 }
+
+export async function getProduct(id: number): Promise<DolibarrProduct> {
+  return dolibarr.get<DolibarrProduct>(`/products/${id}`);
+}
+
+export async function listProducts(params: string): Promise<DolibarrProduct[]> {
+  try {
+    return await dolibarr.get<DolibarrProduct[]>(`/products?${params}`);
+  } catch (err) {
+    if (isDolibarrNotFoundError(err)) return [];
+    throw err;
+  }
+}
+
+// PUT /products/{id} fetches the product and only overwrites posted fields.
+// Price and VAT changes are applied only in "one price per product" or
+// customer-price mode; callers should compare the returned price. Verified on
+// Dolibarr 24.0.0.
+export async function updateProduct(
+  id: number,
+  fields: Record<string, unknown>,
+): Promise<DolibarrProduct> {
+  return dolibarr.put<DolibarrProduct>(`/products/${id}`, fields);
+}

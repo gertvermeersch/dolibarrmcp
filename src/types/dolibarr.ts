@@ -128,6 +128,12 @@ export interface DolibarrProduct {
   label: string;
   description?: string;
   price: number;
+  price_ttc?: number;
+  price_base_type?: string;
   tva_tx: number;
   type: number; // 0=product, 1=service
+  status?: number; // 1 = on sale
+  status_buy?: number; // 1 = on purchase
+  note_public?: string;
+  note_private?: string;
 }

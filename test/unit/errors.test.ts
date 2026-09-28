@@ -118,3 +118,24 @@ test("detects inactive module errors on known module endpoints", () => {
     action: "Enable the Dolibarr Customer orders module and grant the API user order permissions required by this tool.",
   });
 });
+
+test("maps duplicate product refs on update to DUPLICATE_REF", () => {
+  // Body shape observed on Dolibarr 24.0.0 for PUT /products/{id} with an existing ref.
+  const body = {
+    error: {
+      0: "Error : ErrorProductAlreadyExists",
+      1: "Error : ErrorProductAlreadyExists",
+      code: 500,
+      message: "Internal Server Error: Error updating product",
+    },
+  };
+
+  assert.deepEqual(
+    toApiError(new DolibarrApiError(500, "Dolibarr API error 500", "/products/41", body), { productRef: "EXAMPLE-SERVICE" }),
+    { error: "DUPLICATE_REF", message: "Product/service ref 'EXAMPLE-SERVICE' already exists." },
+  );
+  assert.deepEqual(
+    toApiError(new DolibarrApiError(500, "Dolibarr API error 500", "/invoices/41", body)).error,
+    "DOLIBARR_API_ERROR",
+  );
+});

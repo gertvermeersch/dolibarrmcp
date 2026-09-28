@@ -176,6 +176,7 @@ through `mergeLineUpdate`.
 - `search_document_content` (read)
 - `search_products` (read)
 - `search_services` (read)
+- `update_product` and `update_service` (write; catalog items, type is never changed)
 - `search_thirdparties` (read)
 - `create_thirdparty` (write)
 - `update_thirdparty` (write)

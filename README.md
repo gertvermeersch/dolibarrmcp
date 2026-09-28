@@ -132,6 +132,8 @@ Write tools:
 - `update_proposal`
 - `validate_proposal`
 - `set_proposal_status`
+- `update_product`
+- `update_service`
 
 See `todo.md` for the current implementation and verification checklist.
 
@@ -143,7 +145,7 @@ See `todo.md` for the current implementation and verification checklist.
 | Client invoices | `create_invoice` | `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
 | Supplier invoices | `create_supplier_invoice` | `get_supplier_invoice_detail` | `update_supplier_invoice` (draft only) | `set_supplier_invoice_status`, `mark_invoice_paid` | guarded `delete_supplier_invoice` |
 | Proposals | `create_proposal` | `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
-| Products / services | — | `search_products`, `search_services` | — | — | — |
+| Products / services | — | `search_products`, `search_services` | `update_product`, `update_service` | — | — |
 
 Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
 
@@ -167,6 +169,19 @@ in their explicit lifecycle tools.
 
 `update_proposal` keeps the validity period when only the date changes, so the end date
 moves with it. Pass `valid_until` to set the end date explicitly.
+
+### Updating products and services
+
+`update_product` and `update_service` change the ref, label, description, selling price
+(excl. tax), VAT rate, on sale / on purchase flags, and notes of a catalog item found by exact
+ref or ID. Only the fields you pass change. The item type is never changed: using
+`update_service` on a product (or the reverse) returns `CATALOG_TYPE_MISMATCH`, and a ref
+that is already taken returns `DUPLICATE_REF`.
+
+Dolibarr applies price and VAT changes through this API only in "one price per product" or
+customer-price mode. In per-segment or per-quantity pricing it drops them silently, so the
+tools re-read the item and return a `warnings` entry when the price or VAT rate did not change.
+The API user needs create/modify rights on products/services.
 
 ### Marking invoices paid
 

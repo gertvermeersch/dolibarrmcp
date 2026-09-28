@@ -102,20 +102,20 @@ Implementation plan:
   - [x] Supplier invoice line update: `PUT /supplierinvoices/{id}/lines/{lineid}` uses `description`/`pu_ht`, resets missing fields like the client invoice endpoint, and even succeeds on **validated** supplier invoices.
   - [x] Proposal header update: `PUT /proposals/{id}` is not draft-only. `Propal::update()` recomputes `fin_validite = date + duree_validite`, and fetched proposals carry the `PROPALE_VALIDITY_DURATION` default (15) rather than their real duration, so any header PUT without `duree_validite` silently moves the end date.
   - [x] Proposal line update: `PUT /proposals/{id}/lines/{lineid}` merges missing fields with the current line. On a validated proposal it returns `200 false` without changing anything.
-  - [ ] Catalog product/service update: not verified; catalog mutation scope still undecided.
+  - [x] Catalog product/service update: `PUT /products/{id}` fetches the item and only overwrites posted fields (a label-only PUT keeps price and VAT). Price/VAT changes apply only with `PRODUCT_PRICE_UNIQ` or `PRODUIT_CUSTOMER_PRICES`; the API user cannot read those settings (admin only). A posted `type` silently converts a service into a product. A duplicate ref returns a generic 500 listing `ErrorProductAlreadyExists`; a negative price returns an empty 500.
 - [x] Add missing Dolibarr API helpers after endpoint verification.
   - [x] Add `updateInvoice`, `updateInvoiceLine`, and `deleteInvoiceLine`.
   - [x] Add `updateSupplierInvoice`, `updateSupplierInvoiceLine`, and `deleteSupplierInvoiceLine`.
   - [x] Add `updateProposal` (always sends `duree_validite`), `updateProposalLine`, and `deleteProposalLine`.
   - [x] Add `mergeLineUpdate` (`src/dolibarr/documents/lineUpdates.ts`) to build full line bodies from the current line plus requested changes.
-  - [ ] Add catalog update helpers for products and services if catalog mutation is in scope.
+  - [x] Add catalog helpers `getProduct`, `listProducts`, and `updateProduct`.
 - [x] Add MCP update tools on a shared `DocumentUpdateService` (`src/dolibarr/documents/documentUpdateService.ts`).
   - [x] `update_invoice` for draft client invoice header fields (`date`, `customer_ref`, notes) and line edits.
   - [x] `update_supplier_invoice` for draft supplier invoice header fields (`date`, `supplier_invoice_ref`, `label`, notes) and line edits.
   - [x] `update_proposal` for draft proposal header fields (`date`, `valid_until`, `customer_ref`, notes) and line edits. Changing only `date` keeps the validity period.
   - [x] Line edits: `update_lines` (partial, by `line_id`), `add_lines` (same shape as create), `remove_line_ids`. All inputs are validated before the first write.
   - [x] Non-draft documents are refused with `NOT_DRAFT` and point at the matching `set_*_status` tool.
-  - [ ] `update_product` and `update_service` if catalog mutation is in scope.
+  - [x] `update_product` and `update_service` (`src/tools/catalog/catalogUpdate.ts`): ref, label, description, price, VAT rate, on sale / on purchase, notes. Type mismatches are refused with `CATALOG_TYPE_MISMATCH`, duplicate refs map to `DUPLICATE_REF`, and ignored price/VAT changes are reported as `warnings`.
   - [x] Keep lifecycle operations separate from update tools: validation, proposal acceptance/refusal, payments, and cancellation remain explicit tools.
 - [x] Expand integration tests for update coverage.
   - [ ] Thirdparty test should exercise `create_thirdparty`, `search_thirdparties`/`get_client_overview`, `update_thirdparty`, and cleanup delete.
@@ -123,7 +123,7 @@ Implementation plan:
   - [x] Supplier invoice: same flow, plus `ref_supplier`/`label` changes.
   - [x] Proposal: same flow, plus validity date kept on notes-only and date-only updates, explicit `valid_until`, and rejection of an end date before the proposal date.
   - [x] `callJsonTool` now parses args through the tool's input schema so Zod defaults apply as they do in the MCP server.
-  - [ ] Catalog tests should create or reuse a disposable product/service, update it, search/read it back, and clean it up if catalog mutation is implemented.
+  - [x] Catalog test creates a disposable service and product, updates them through the tools, reads the service back via `search_services`, checks `DUPLICATE_REF` and `CATALOG_TYPE_MISMATCH`, and deletes both.
 - [x] Update documentation once update support is implemented.
   - [x] Add a CRUD coverage table to `README.md`.
   - [x] Document which tools are lifecycle/status tools rather than plain updates.

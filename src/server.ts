@@ -2,6 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { registerSearchProducts } from "./tools/catalog/searchProducts.js";
 import { registerSearchServices } from "./tools/catalog/searchServices.js";
+import { registerUpdateProduct } from "./tools/catalog/updateProduct.js";
+import { registerUpdateService } from "./tools/catalog/updateService.js";
 import { registerCreateInvoice } from "./tools/invoices/createInvoice.js";
 import { registerCreateSupplierInvoice } from "./tools/invoices/createSupplierInvoice.js";
 import { registerDeleteInvoice } from "./tools/invoices/deleteInvoice.js";
@@ -37,6 +39,8 @@ import { registerUpdateThirdparty } from "./tools/thirdparties/updateThirdparty.
 export function registerTools(server: McpServer): void {
   registerSearchProducts(server);
   registerSearchServices(server);
+  registerUpdateProduct(server);
+  registerUpdateService(server);
 
   registerCreateInvoice(server);
   registerCreateSupplierInvoice(server);

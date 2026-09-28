@@ -26,7 +26,7 @@ function getDolibarrErrorMessage(body: unknown): string | undefined {
 }
 
 function notFoundMessageForPath(path: string): string | undefined {
-  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties)\/(\d+)(?:\/|$|\?)/.exec(path);
+  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties|products)\/(\d+)(?:\/|$|\?)/.exec(path);
   if (!match) return undefined;
 
   const [, resource, id] = match;
@@ -35,6 +35,7 @@ function notFoundMessageForPath(path: string): string | undefined {
     supplierinvoices: "Supplier invoice",
     proposals: "Proposal",
     thirdparties: "Thirdparty",
+    products: "Product/service",
   };
 
   return `${entity[resource]} ${id} not found.`;
@@ -50,6 +51,7 @@ function cleanDolibarrErrorMessage(err: DolibarrApiError): string {
 
 export type ApiErrorContext = {
   supplierInvoiceRef?: string;
+  productRef?: string;
 };
 
 function moduleHintForPath(path: string): { name: string; action: string } | undefined {
@@ -122,6 +124,13 @@ function isInvoiceDraftWarehouseError(err: DolibarrApiError): boolean {
   return /idwarehouse|warehouse|entrep[oô]t/i.test(dolibarrErrorText(err));
 }
 
+// Dolibarr reports a duplicate product ref on update as a generic 500 whose
+// body lists "ErrorProductAlreadyExists".
+function isProductRefExistsError(err: DolibarrApiError): boolean {
+  if (!/^\/products(\/\d+)?$/.test(err.path)) return false;
+  return /ErrorProductAlreadyExists/.test(dolibarrErrorText(err));
+}
+
 function isInvoiceNotErasableError(err: DolibarrApiError): boolean {
   if (!/^\/invoices\/\d+$/.test(err.path)) return false;
   if (err.status !== 403) return false;
@@ -180,6 +189,15 @@ export function toApiError(
         message: context.supplierInvoiceRef
           ? `Supplier invoice ref '${context.supplierInvoiceRef}' already exists for this supplier.`
           : "Supplier invoice ref already exists for this supplier.",
+      };
+    }
+
+    if (isProductRefExistsError(err)) {
+      return {
+        error: "DUPLICATE_REF",
+        message: context.productRef
+          ? `Product/service ref '${context.productRef}' already exists.`
+          : "Product/service ref already exists.",
       };
     }
 

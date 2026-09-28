@@ -53,6 +53,8 @@ async function loadApi() {
     ...(await import("../../src/dolibarr/documents/documentCreationService.js")),
     ...(await import("../../src/tools/catalog/searchProducts.js")),
     ...(await import("../../src/tools/catalog/searchServices.js")),
+    ...(await import("../../src/tools/catalog/updateProduct.js")),
+    ...(await import("../../src/tools/catalog/updateService.js")),
     ...(await import("../../src/tools/invoices/getInvoiceDetail.js")),
     ...(await import("../../src/tools/invoices/getMonthlyRevenue.js")),
     ...(await import("../../src/tools/invoices/getOutstandingReceivables.js")),
@@ -1281,6 +1283,108 @@ test("updates a draft proposal through update_proposal without moving its validi
       await deleteProposal(proposalId).catch((err: unknown) => cleanupErrors.push(err));
     }
     await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+test("updates a disposable service and product through the catalog update tools", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const { dolibarr, registerSearchServices, registerUpdateProduct, registerUpdateService } = await loadApi();
+  const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 6)}`.toUpperCase();
+  const serviceRef = `MCP-IT-SVC-${suffix}`;
+  const productRef = `MCP-IT-PRD-${suffix}`;
+  const createdIds: number[] = [];
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const serviceId = await dolibarr.post<number>("/products", {
+      ref: serviceRef,
+      label: integrationLabel("Catalog Service"),
+      type: 1,
+      price: 100,
+      price_base_type: "HT",
+      tva_tx: 21,
+      status: 1,
+      status_buy: 1,
+    });
+    createdIds.push(serviceId);
+    const productId = await dolibarr.post<number>("/products", {
+      ref: productRef,
+      label: integrationLabel("Catalog Product"),
+      type: 0,
+      price: 10,
+      price_base_type: "HT",
+      tva_tx: 21,
+      status: 1,
+      status_buy: 1,
+    });
+    createdIds.push(productId);
+
+    const renamedServiceRef = `${serviceRef}-B`;
+    const updated = await callJsonTool<Record<string, unknown>>(registerUpdateService, "update_service", {
+      service: serviceRef,
+      ref: renamedServiceRef,
+      label: integrationLabel("Catalog Service B"),
+      description: "Integration catalog description",
+      price: 120,
+      vat_rate: 6,
+      on_purchase: false,
+    });
+    assert.equal(updated.success, true, `Expected update success, got ${JSON.stringify(updated)}`);
+    assert.equal(updated.service_id, serviceId);
+    assert.equal("warnings" in updated, false, `Unexpected warnings ${JSON.stringify(updated.warnings)}`);
+    assert.deepEqual(updated.service, {
+      id: serviceId,
+      ref: renamedServiceRef,
+      label: integrationLabel("Catalog Service B"),
+      price: 120,
+      vat_rate: 6,
+      type: "service",
+      description: "Integration catalog description",
+      price_including_tax: 127.2,
+      on_sale: true,
+      on_purchase: false,
+    });
+
+    const found = await callJsonTool<Record<string, unknown>[]>(registerSearchServices, "search_services", {
+      query: renamedServiceRef,
+    });
+    const foundService = found.find((item) => item.id === serviceId);
+    assert.ok(foundService, "Expected the renamed service in search_services results");
+    assert.equal(foundService.price, 120);
+
+    const labelOnly = await callJsonTool<Record<string, unknown>>(registerUpdateProduct, "update_product", {
+      product: String(productId),
+      label: integrationLabel("Catalog Product B"),
+    });
+    assert.equal(labelOnly.success, true, `Expected update success, got ${JSON.stringify(labelOnly)}`);
+    const product = labelOnly.product as Record<string, unknown>;
+    assert.equal(product.price, 10);
+    assert.equal(product.vat_rate, 21);
+
+    const duplicate = await callJsonTool<Record<string, unknown>>(registerUpdateProduct, "update_product", {
+      product: productRef,
+      ref: renamedServiceRef,
+    });
+    assert.equal(duplicate.error, "DUPLICATE_REF");
+
+    const mismatch = await callJsonTool<Record<string, unknown>>(registerUpdateService, "update_service", {
+      service: productRef,
+      label: "Must not be written",
+    });
+    assert.equal(mismatch.error, "CATALOG_TYPE_MISMATCH");
+    const unchanged = await dolibarr.get<{ label: string; type: string }>(`/products/${productId}`);
+    assert.equal(unchanged.label, integrationLabel("Catalog Product B"));
+    assert.equal(Number(unchanged.type), 0);
+  } catch (err) {
+    testError = err;
+  } finally {
+    for (const id of createdIds) {
+      await dolibarr.delete(`/products/${id}`).catch((err: unknown) => cleanupErrors.push(err));
+    }
   }
 
   throwWithCleanupErrors(testError, cleanupErrors);
