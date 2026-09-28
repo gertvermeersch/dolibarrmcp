@@ -95,35 +95,39 @@ Current MCP tool coverage, checked against `src/server.ts` on 2026-07-04:
 
 Implementation plan:
 
-- [ ] Verify Dolibarr update endpoint shapes against the real development instance.
-  - [ ] Client invoice header update: confirm `PUT /invoices/{id}` fields and draft-only behavior.
-  - [ ] Client invoice line update: confirm `/invoices/{id}/lines/{lineid}` or equivalent endpoint support.
-  - [ ] Supplier invoice header update: confirm `PUT /supplierinvoices/{id}` fields and draft-only behavior.
-  - [ ] Supplier invoice line update: confirm supported line endpoint paths and required field names.
-  - [ ] Proposal header update: confirm `PUT /proposals/{id}` fields and draft/open status behavior.
-  - [ ] Proposal line update: confirm supported line endpoint paths and required field names.
-  - [ ] Catalog product/service update: confirm `PUT /products/{id}` payload requirements and service/product mode flags if catalog mutation is in scope.
-- [ ] Add missing Dolibarr API helpers after endpoint verification.
-  - [ ] Add `updateInvoice` and `updateInvoiceLine`.
-  - [ ] Add `updateSupplierInvoice` and `updateSupplierInvoiceLine`.
-  - [ ] Add `updateProposal` and `updateProposalLine`.
+- [x] Verify Dolibarr update endpoint shapes against the real development instance (Dolibarr 24.0.0, 2026-09-28).
+  - [x] Client invoice header update: `PUT /invoices/{id}` sets any posted field (`date`, `ref_client`, `note_public`, `note_private`, `cond_reglement_id` recomputes the due date). It is **not** draft-only: it also changes validated invoices, so the MCP tool enforces draft-only.
+  - [x] Client invoice line update: `PUT /invoices/{id}/lines/{lineid}` works on drafts and returns 304 on validated invoices. Fields missing from the body are reset (a `{qty}`-only body zeroed price, VAT, discount, description, and product type), so updates resend the full merged line. `DELETE /invoices/{id}/lines/{lineid}` works.
+  - [x] Supplier invoice header update: `PUT /supplierinvoices/{id}` sets `date`, `ref_supplier`, `label`, and notes. Not draft-only. `cond_reglement_id` does not recompute `date_echeance`, so payment terms are not exposed yet.
+  - [x] Supplier invoice line update: `PUT /supplierinvoices/{id}/lines/{lineid}` uses `description`/`pu_ht`, resets missing fields like the client invoice endpoint, and even succeeds on **validated** supplier invoices.
+  - [x] Proposal header update: `PUT /proposals/{id}` is not draft-only. `Propal::update()` recomputes `fin_validite = date + duree_validite`, and fetched proposals carry the `PROPALE_VALIDITY_DURATION` default (15) rather than their real duration, so any header PUT without `duree_validite` silently moves the end date.
+  - [x] Proposal line update: `PUT /proposals/{id}/lines/{lineid}` merges missing fields with the current line. On a validated proposal it returns `200 false` without changing anything.
+  - [ ] Catalog product/service update: not verified; catalog mutation scope still undecided.
+- [x] Add missing Dolibarr API helpers after endpoint verification.
+  - [x] Add `updateInvoice`, `updateInvoiceLine`, and `deleteInvoiceLine`.
+  - [x] Add `updateSupplierInvoice`, `updateSupplierInvoiceLine`, and `deleteSupplierInvoiceLine`.
+  - [x] Add `updateProposal` (always sends `duree_validite`), `updateProposalLine`, and `deleteProposalLine`.
+  - [x] Add `mergeLineUpdate` (`src/dolibarr/documents/lineUpdates.ts`) to build full line bodies from the current line plus requested changes.
   - [ ] Add catalog update helpers for products and services if catalog mutation is in scope.
-- [ ] Add MCP update tools.
-  - [ ] `update_invoice` for draft client invoice header fields and line edits.
-  - [ ] `update_supplier_invoice` for draft supplier invoice header fields and line edits.
-  - [ ] `update_proposal` for proposal header fields and line edits while Dolibarr allows mutation.
+- [x] Add MCP update tools on a shared `DocumentUpdateService` (`src/dolibarr/documents/documentUpdateService.ts`).
+  - [x] `update_invoice` for draft client invoice header fields (`date`, `customer_ref`, notes) and line edits.
+  - [x] `update_supplier_invoice` for draft supplier invoice header fields (`date`, `supplier_invoice_ref`, `label`, notes) and line edits.
+  - [x] `update_proposal` for draft proposal header fields (`date`, `valid_until`, `customer_ref`, notes) and line edits. Changing only `date` keeps the validity period.
+  - [x] Line edits: `update_lines` (partial, by `line_id`), `add_lines` (same shape as create), `remove_line_ids`. All inputs are validated before the first write.
+  - [x] Non-draft documents are refused with `NOT_DRAFT` and point at the matching `set_*_status` tool.
   - [ ] `update_product` and `update_service` if catalog mutation is in scope.
-  - [ ] Keep lifecycle operations separate from update tools: validation, proposal acceptance/refusal, payments, and cancellation should remain explicit tools.
-- [ ] Expand integration tests for update coverage.
+  - [x] Keep lifecycle operations separate from update tools: validation, proposal acceptance/refusal, payments, and cancellation remain explicit tools.
+- [x] Expand integration tests for update coverage.
   - [ ] Thirdparty test should exercise `create_thirdparty`, `search_thirdparties`/`get_client_overview`, `update_thirdparty`, and cleanup delete.
-  - [ ] Client invoice lifecycle should include draft update before validation, fetch after update, validation, and cleanup delete.
-  - [ ] Supplier invoice lifecycle should include draft update before validation, fetch after update, validation, and cleanup delete.
-  - [ ] Proposal lifecycle should include draft update before validation, fetch after update, validation/status change, and cleanup delete.
+  - [x] Client invoice: draft update (header + qty-only line edit + remove + add), fetch after update, validation, `NOT_DRAFT` refusal, cleanup delete.
+  - [x] Supplier invoice: same flow, plus `ref_supplier`/`label` changes.
+  - [x] Proposal: same flow, plus validity date kept on notes-only and date-only updates, explicit `valid_until`, and rejection of an end date before the proposal date.
+  - [x] `callJsonTool` now parses args through the tool's input schema so Zod defaults apply as they do in the MCP server.
   - [ ] Catalog tests should create or reuse a disposable product/service, update it, search/read it back, and clean it up if catalog mutation is implemented.
-- [ ] Update documentation once update support is implemented.
-  - [ ] Add a CRUD coverage table to `README.md`.
-  - [ ] Document which tools are lifecycle/status tools rather than plain updates.
-  - [ ] Document draft-only restrictions for document update tools.
+- [x] Update documentation once update support is implemented.
+  - [x] Add a CRUD coverage table to `README.md`.
+  - [x] Document which tools are lifecycle/status tools rather than plain updates.
+  - [x] Document draft-only restrictions for document update tools.
 - [ ] Consider catalog create tools after update support is stable.
   - [ ] `create_product` and `create_service`.
 

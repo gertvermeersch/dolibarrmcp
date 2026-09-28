@@ -123,14 +123,50 @@ Write tools:
 - `create_thirdparty`
 - `update_thirdparty`
 - `create_invoice`
+- `update_invoice`
 - `create_supplier_invoice`
+- `update_supplier_invoice`
 - `validate_invoice`
 - `mark_invoice_paid`
 - `create_proposal`
+- `update_proposal`
 - `validate_proposal`
 - `set_proposal_status`
 
 See `todo.md` for the current implementation and verification checklist.
+
+### CRUD coverage
+
+| Entity | Create | Read | Update | Lifecycle / status | Delete |
+| --- | --- | --- | --- | --- | --- |
+| Thirdparties | `create_thirdparty` | `search_thirdparties`, `get_client_overview` | `update_thirdparty` | — | guarded `delete_thirdparty` |
+| Client invoices | `create_invoice` | `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
+| Supplier invoices | `create_supplier_invoice` | `get_supplier_invoice_detail` | `update_supplier_invoice` (draft only) | `set_supplier_invoice_status`, `mark_invoice_paid` | guarded `delete_supplier_invoice` |
+| Proposals | `create_proposal` | `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
+| Products / services | — | `search_products`, `search_services` | — | — | — |
+
+Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
+
+### Updating documents
+
+`update_invoice`, `update_supplier_invoice`, and `update_proposal` change header fields and
+lines of a **draft** document in one call:
+
+- `update_lines` edits existing lines by `line_id` (from the detail tools). Fields left out
+  keep their current value.
+- `add_lines` appends lines in the same shape as the create tools' `lines`.
+- `remove_line_ids` deletes lines.
+
+All inputs are checked before the first write, so a rejected request leaves the document
+unchanged. Non-draft documents are refused with `NOT_DRAFT`; reopen them with the matching
+`set_*_status` tool (`status: "draft"`) first. Dolibarr's REST API itself accepts header
+changes on validated documents, so this restriction is enforced by the MCP server.
+
+Status changes are not updates: validation, acceptance/refusal, payments, and reopening stay
+in their explicit lifecycle tools.
+
+`update_proposal` keeps the validity period when only the date changes, so the end date
+moves with it. Pass `valid_until` to set the end date explicitly.
 
 ### Marking invoices paid
 
@@ -174,6 +210,10 @@ src/dolibarr/documents/documentCreationService.ts
 That service handles the common workflow for invoices, supplier invoices, and proposals:
 resolve the thirdparty, resolve catalog/free-text lines, create the document, add lines,
 and optionally validate it.
+
+Draft document updates use the matching `src/dolibarr/documents/documentUpdateService.ts`,
+which enforces the draft-only rule, validates line IDs and new lines up front, and merges
+line edits with the existing line before sending them to Dolibarr.
 
 ## Errors
 

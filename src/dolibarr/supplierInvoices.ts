@@ -33,6 +33,31 @@ export async function addSupplierInvoiceLine(
   });
 }
 
+export async function updateSupplierInvoice(
+  invoiceId: number,
+  fields: Record<string, unknown>,
+): Promise<DolibarrInvoice> {
+  return dolibarr.put<DolibarrInvoice>(`/supplierinvoices/${invoiceId}`, fields);
+}
+
+// Dolibarr resets any field missing from the body; pass a full line built with
+// mergeLineUpdate rather than a partial change set.
+export async function updateSupplierInvoiceLine(
+  invoiceId: number,
+  lineId: number,
+  line: Partial<DolibarrInvoiceLine>,
+): Promise<void> {
+  await dolibarr.put(`/supplierinvoices/${invoiceId}/lines/${lineId}`, {
+    ...line,
+    description: line.desc,
+    pu_ht: line.subprice,
+  });
+}
+
+export async function deleteSupplierInvoiceLine(invoiceId: number, lineId: number): Promise<void> {
+  await dolibarr.delete(`/supplierinvoices/${invoiceId}/lines/${lineId}`);
+}
+
 export async function validateSupplierInvoice(
   invoiceId: number,
   options: { notrigger?: number } = {},

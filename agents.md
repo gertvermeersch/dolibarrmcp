@@ -159,6 +159,9 @@ On Docker Desktop (Windows/Mac), it resolves automatically.
 
 Follow `src/dolibarr/documents/documentCreationService.ts` for new tools that create
 invoice-like or proposal-like documents with thirdparty resolution and line items.
+Follow `src/dolibarr/documents/documentUpdateService.ts` for tools that edit draft documents.
+Dolibarr's line PUT endpoints reset any field missing from the body, so line edits must go
+through `mergeLineUpdate`.
 
 ---
 
@@ -177,9 +180,12 @@ invoice-like or proposal-like documents with thirdparty resolution and line item
 - `create_thirdparty` (write)
 - `update_thirdparty` (write)
 - `create_invoice` (write)
+- `update_invoice` (write; draft only)
 - `create_supplier_invoice` (write)
+- `update_supplier_invoice` (write; draft only)
 - `validate_invoice` (write)
 - `create_proposal` (write)
+- `update_proposal` (write; draft only)
 - `validate_proposal` (write)
 - `set_proposal_status` (write)
 - `mark_invoice_paid` (write; client and supplier invoices, with optional payment creation)

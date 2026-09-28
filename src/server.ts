@@ -13,6 +13,8 @@ import { registerGetSupplierInvoiceDetail } from "./tools/invoices/getSupplierIn
 import { registerMarkInvoicePaid } from "./tools/invoices/markInvoicePaid.js";
 import { registerSetInvoiceStatus } from "./tools/invoices/setInvoiceStatus.js";
 import { registerSetSupplierInvoiceStatus } from "./tools/invoices/setSupplierInvoiceStatus.js";
+import { registerUpdateInvoice } from "./tools/invoices/updateInvoice.js";
+import { registerUpdateSupplierInvoice } from "./tools/invoices/updateSupplierInvoice.js";
 import { registerValidateInvoice } from "./tools/invoices/validateInvoice.js";
 import { registerListBankAccounts } from "./tools/payments/listBankAccounts.js";
 import { registerListPaymentModes } from "./tools/payments/listPaymentModes.js";
@@ -20,6 +22,7 @@ import { registerCreateProposal } from "./tools/proposals/createProposal.js";
 import { registerDeleteProposal } from "./tools/proposals/deleteProposal.js";
 import { registerGetProposalDetail } from "./tools/proposals/getProposalDetail.js";
 import { registerSetProposalStatus } from "./tools/proposals/setProposalStatus.js";
+import { registerUpdateProposal } from "./tools/proposals/updateProposal.js";
 import { registerValidateProposal } from "./tools/proposals/validateProposal.js";
 import { registerSearchAcross } from "./tools/search/searchAcross.js";
 import { registerSearchDocumentContent } from "./tools/search/searchDocumentContent.js";
@@ -37,6 +40,8 @@ export function registerTools(server: McpServer): void {
 
   registerCreateInvoice(server);
   registerCreateSupplierInvoice(server);
+  registerUpdateInvoice(server);
+  registerUpdateSupplierInvoice(server);
   registerValidateInvoice(server);
   registerSetInvoiceStatus(server);
   registerSetSupplierInvoiceStatus(server);
@@ -52,6 +57,7 @@ export function registerTools(server: McpServer): void {
   registerListBankAccounts(server);
 
   registerCreateProposal(server);
+  registerUpdateProposal(server);
   registerGetProposalDetail(server);
   registerValidateProposal(server);
   registerSetProposalStatus(server);

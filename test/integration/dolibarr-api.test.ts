@@ -57,7 +57,10 @@ async function loadApi() {
     ...(await import("../../src/tools/invoices/getMonthlyRevenue.js")),
     ...(await import("../../src/tools/invoices/getOutstandingReceivables.js")),
     ...(await import("../../src/tools/invoices/getSupplierInvoiceDetail.js")),
+    ...(await import("../../src/tools/invoices/updateInvoice.js")),
+    ...(await import("../../src/tools/invoices/updateSupplierInvoice.js")),
     ...(await import("../../src/tools/proposals/setProposalStatus.js")),
+    ...(await import("../../src/tools/proposals/updateProposal.js")),
     ...(await import("../../src/tools/search/searchAcross.js")),
     ...(await import("../../src/tools/search/searchDocumentContent.js")),
     ...(await import("../../src/tools/thirdparties/getClientOverview.js")),
@@ -135,7 +138,10 @@ type RegisteredToolHandler = (
 ) => CallToolResult | Promise<CallToolResult>;
 
 interface TestMcpServer extends McpServer {
-  _registeredTools: Record<string, { handler: RegisteredToolHandler }>;
+  _registeredTools: Record<string, {
+    handler: RegisteredToolHandler;
+    inputSchema?: { parseAsync(args: unknown): Promise<Record<string, unknown>> };
+  }>;
 }
 
 async function callJsonTool<T = Record<string, unknown>>(
@@ -149,7 +155,9 @@ async function callJsonTool<T = Record<string, unknown>>(
   const tool = (server as TestMcpServer)._registeredTools[toolName];
   assert.ok(tool, `Expected ${toolName} to be registered`);
 
-  const result = await tool.handler(args, {});
+  // Parse like the MCP server does so schema defaults apply to the handler args.
+  const parsedArgs = tool.inputSchema ? await tool.inputSchema.parseAsync(args) : args;
+  const result = await tool.handler(parsedArgs, {});
   const firstContent = result.content[0];
   assert.equal(firstContent?.type, "text");
   assert.equal(typeof firstContent.text, "string");
@@ -959,6 +967,318 @@ test("reads client overview, receivables, monthly revenue, and cross-search from
   } finally {
     if (invoiceId !== undefined) {
       await deleteInvoice(invoiceId).catch((err: unknown) => cleanupErrors.push(err));
+    }
+    await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+type UpdateToolLine = {
+  line_id: number;
+  description?: string;
+  qty?: number;
+  unit_price?: number;
+  vat_rate?: number;
+  discount_percent?: number;
+};
+
+type UpdateToolResponse = {
+  success?: boolean;
+  error?: string;
+  ref?: string;
+  date?: string;
+  valid_until?: string;
+  supplier_invoice_ref?: string;
+  changes?: { updated_fields: string[]; updated_line_ids: number[]; removed_line_ids: number[] };
+  lines?: UpdateToolLine[];
+};
+
+// Two free-text lines: the first gets a qty-only edit, the second is removed,
+// and a third is appended. The qty-only edit guards against Dolibarr resetting
+// fields missing from a line PUT body.
+const draftUpdateLines = [
+  { description: "Integration update line A", qty: 2, unit_price: 100, vat_rate: 21, product_type: "service" as const },
+  { description: "Integration update line B", qty: 1, unit_price: 10, vat_rate: 21, product_type: "service" as const },
+];
+
+function assertDraftLineUpdate(response: UpdateToolResponse, lineAId: number, lineBId: number): void {
+  assert.equal(response.success, true, `Expected update success, got ${JSON.stringify(response)}`);
+  assert.deepEqual(response.changes?.updated_line_ids, [lineAId]);
+  assert.deepEqual(response.changes?.removed_line_ids, [lineBId]);
+
+  const lines = response.lines ?? [];
+  assert.equal(lines.length, 2);
+  const lineA = lines.find((line) => line.line_id === lineAId);
+  assert.ok(lineA, "Expected edited line A in the update response");
+  assert.equal(lineA.description, "Integration update line A");
+  assert.equal(lineA.qty, 3);
+  assert.equal(lineA.unit_price, 100);
+  assert.equal(lineA.vat_rate, 21);
+  assert.equal(lineA.discount_percent, 5);
+  assert.ok(!lines.some((line) => line.line_id === lineBId), "Expected line B to be removed");
+  assert.ok(lines.some((line) => line.description === "Integration update line C"));
+}
+
+const draftUpdateLineEdits = (lineAId: number, lineBId: number) => ({
+  update_lines: [{ line_id: lineAId, qty: 3 }],
+  remove_line_ids: [lineBId],
+  add_lines: [{ description: "Integration update line C", qty: 1, unit_price: 7.5, vat_rate: 21 }],
+});
+
+function sortedLineIds(lines: { id: number | string }[] | undefined): number[] {
+  return (lines ?? []).map((line) => Number(line.id)).sort((a, b) => a - b);
+}
+
+test("updates a draft client invoice through update_invoice, then refuses once validated", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const {
+    DocumentCreationService,
+    addInvoiceLine,
+    createInvoice,
+    createThirdparty,
+    deleteInvoice,
+    deleteThirdparty,
+    getInvoice,
+    registerUpdateInvoice,
+    updateInvoiceLine,
+    validateInvoice,
+  } = await loadApi();
+  const clientId = await createThirdparty({
+    name: uniqueName("Invoice Update Client"),
+    client: 1,
+    supplier: 0,
+    town: "Integration Test",
+  });
+
+  let invoiceId: number | undefined;
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const service = new DocumentCreationService({ create: createInvoice, addLine: addInvoiceLine, validate: validateInvoice });
+    const created = await service.create({ thirdparty: String(clientId), date: "2026-05-19", validate: false, lines: draftUpdateLines });
+    if (!("success" in created)) assert.fail(`Expected invoice creation success, got ${JSON.stringify(created)}`);
+    invoiceId = created.id;
+
+    const [lineAId, lineBId] = sortedLineIds((await getInvoice(invoiceId)).lines);
+    // Give line A a discount so the qty-only edit proves it survives.
+    await updateInvoiceLine(invoiceId, lineAId, {
+      desc: "Integration update line A",
+      qty: 2,
+      subprice: 100,
+      tva_tx: 21,
+      remise_percent: 5,
+      product_type: 1,
+    });
+
+    const response = await callJsonTool<UpdateToolResponse>(registerUpdateInvoice, "update_invoice", {
+      invoice: String(invoiceId),
+      date: "2026-05-20",
+      customer_ref: "MCP-IT-PO",
+      note_private: "Integration update note",
+      ...draftUpdateLineEdits(lineAId, lineBId),
+    });
+    assertDraftLineUpdate(response, lineAId, lineBId);
+    assert.equal(response.date, "2026-05-20");
+
+    const updated = (await getInvoice(invoiceId)) as Awaited<ReturnType<typeof getInvoice>> & Record<string, unknown>;
+    assert.equal(dolibarrDateFromTimestamp(updated.date), "2026-05-20");
+    assert.equal(updated.ref_client, "MCP-IT-PO");
+    assert.equal(updated.note_private, "Integration update note");
+
+    await validateInvoice(invoiceId);
+    const refused = await callJsonTool<UpdateToolResponse>(registerUpdateInvoice, "update_invoice", {
+      invoice: String(invoiceId),
+      note_private: "Must not be written",
+    });
+    assert.equal(refused.error, "NOT_DRAFT");
+    const afterRefusal = (await getInvoice(invoiceId)) as Awaited<ReturnType<typeof getInvoice>> & Record<string, unknown>;
+    assert.equal(afterRefusal.note_private, "Integration update note");
+  } catch (err) {
+    testError = err;
+  } finally {
+    if (invoiceId !== undefined) {
+      await deleteInvoice(invoiceId).catch((err: unknown) => cleanupErrors.push(err));
+    }
+    await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+test("updates a draft supplier invoice through update_supplier_invoice, then refuses once validated", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const {
+    DocumentCreationService,
+    addSupplierInvoiceLine,
+    createSupplierInvoice,
+    createThirdparty,
+    deleteSupplierInvoice,
+    deleteThirdparty,
+    getSupplierInvoice,
+    registerUpdateSupplierInvoice,
+    updateSupplierInvoiceLine,
+    validateSupplierInvoice,
+  } = await loadApi();
+  const supplierId = await createThirdparty({
+    name: uniqueName("Supplier Invoice Update Supplier"),
+    client: 0,
+    supplier: 1,
+    town: "Integration Test",
+  });
+
+  let invoiceId: number | undefined;
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const service = new DocumentCreationService({
+      create: createSupplierInvoice,
+      addLine: addSupplierInvoiceLine,
+      validate: validateSupplierInvoice,
+    });
+    const created = await service.create({
+      thirdparty: String(supplierId),
+      refSupplier: uniqueRef("Supplier Update"),
+      date: "2026-05-19",
+      validate: false,
+      lines: draftUpdateLines,
+    });
+    if (!("success" in created)) assert.fail(`Expected supplier invoice creation success, got ${JSON.stringify(created)}`);
+    invoiceId = created.id;
+
+    const [lineAId, lineBId] = sortedLineIds((await getSupplierInvoice(invoiceId)).lines);
+    await updateSupplierInvoiceLine(invoiceId, lineAId, {
+      desc: "Integration update line A",
+      qty: 2,
+      subprice: 100,
+      tva_tx: 21,
+      remise_percent: 5,
+      product_type: 1,
+    });
+
+    const newSupplierRef = uniqueRef("Supplier Update B");
+    const response = await callJsonTool<UpdateToolResponse>(registerUpdateSupplierInvoice, "update_supplier_invoice", {
+      supplier_invoice: String(invoiceId),
+      date: "2026-05-21",
+      supplier_invoice_ref: newSupplierRef,
+      label: "Integration update label",
+      ...draftUpdateLineEdits(lineAId, lineBId),
+    });
+    assertDraftLineUpdate(response, lineAId, lineBId);
+    assert.equal(response.supplier_invoice_ref, newSupplierRef);
+    assert.equal(response.date, "2026-05-21");
+
+    const updated = (await getSupplierInvoice(invoiceId)) as Awaited<ReturnType<typeof getSupplierInvoice>> & Record<string, unknown>;
+    assert.equal(updated.ref_supplier, newSupplierRef);
+    assert.equal(updated.label, "Integration update label");
+
+    await validateSupplierInvoice(invoiceId);
+    const refused = await callJsonTool<UpdateToolResponse>(registerUpdateSupplierInvoice, "update_supplier_invoice", {
+      supplier_invoice: String(invoiceId),
+      update_lines: [{ line_id: lineAId, qty: 9 }],
+    });
+    assert.equal(refused.error, "NOT_DRAFT");
+    const afterRefusal = await getSupplierInvoice(invoiceId);
+    const lineAfterRefusal = afterRefusal.lines?.find((line) => Number(line.id) === lineAId);
+    assert.equal(Number(lineAfterRefusal?.qty), 3);
+  } catch (err) {
+    testError = err;
+  } finally {
+    if (invoiceId !== undefined) {
+      await deleteSupplierInvoice(invoiceId).catch((err: unknown) => cleanupErrors.push(err));
+    }
+    await deleteThirdparty(supplierId).catch((err: unknown) => cleanupErrors.push(err));
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+test("updates a draft proposal through update_proposal without moving its validity date", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const {
+    DocumentCreationService,
+    addProposalLine,
+    createProposal,
+    createThirdparty,
+    deleteProposal,
+    deleteThirdparty,
+    getProposal,
+    registerUpdateProposal,
+    updateProposalLine,
+    validateProposal,
+  } = await loadApi();
+  const clientId = await createThirdparty({
+    name: uniqueName("Proposal Update Client"),
+    client: 1,
+    supplier: 0,
+    town: "Integration Test",
+  });
+
+  let proposalId: number | undefined;
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const service = new DocumentCreationService({ create: createProposal, addLine: addProposalLine, validate: validateProposal });
+    const created = await service.create({ thirdparty: String(clientId), date: "2026-05-19", validate: false, lines: draftUpdateLines });
+    if (!("success" in created)) assert.fail(`Expected proposal creation success, got ${JSON.stringify(created)}`);
+    proposalId = created.id;
+
+    const [lineAId, lineBId] = sortedLineIds((await getProposal(proposalId)).lines);
+    await updateProposalLine(proposalId, lineAId, { remise_percent: 5 });
+
+    // A notes-only header update must keep the 30-day validity end date.
+    const notesOnly = await callJsonTool<UpdateToolResponse>(registerUpdateProposal, "update_proposal", {
+      proposal: String(proposalId),
+      note_public: "Integration update note",
+    });
+    assert.equal(notesOnly.success, true, `Expected update success, got ${JSON.stringify(notesOnly)}`);
+    assert.equal(notesOnly.valid_until, "2026-06-18");
+
+    // Moving the date keeps the validity period.
+    const moved = await callJsonTool<UpdateToolResponse>(registerUpdateProposal, "update_proposal", {
+      proposal: String(proposalId),
+      date: "2026-05-29",
+      customer_ref: "MCP-IT-REF",
+      ...draftUpdateLineEdits(lineAId, lineBId),
+    });
+    assertDraftLineUpdate(moved, lineAId, lineBId);
+    assert.equal(moved.date, "2026-05-29");
+    assert.equal(moved.valid_until, "2026-06-28");
+
+    const extended = await callJsonTool<UpdateToolResponse>(registerUpdateProposal, "update_proposal", {
+      proposal: String(proposalId),
+      valid_until: "2026-07-31",
+    });
+    assert.equal(extended.valid_until, "2026-07-31");
+
+    const beforeEnd = await callJsonTool<UpdateToolResponse>(registerUpdateProposal, "update_proposal", {
+      proposal: String(proposalId),
+      valid_until: "2026-05-01",
+    });
+    assert.equal(beforeEnd.error, "VALIDATION_ERROR");
+
+    const updated = (await getProposal(proposalId)) as Awaited<ReturnType<typeof getProposal>> & Record<string, unknown>;
+    assert.equal(updated.ref_client, "MCP-IT-REF");
+    assert.equal(updated.note_public, "Integration update note");
+    assert.equal(dolibarrDateFromTimestamp(updated.fin_validite), "2026-07-31");
+
+    await validateProposal(proposalId);
+    const refused = await callJsonTool<UpdateToolResponse>(registerUpdateProposal, "update_proposal", {
+      proposal: String(proposalId),
+      note_public: "Must not be written",
+    });
+    assert.equal(refused.error, "NOT_DRAFT");
+  } catch (err) {
+    testError = err;
+  } finally {
+    if (proposalId !== undefined) {
+      await deleteProposal(proposalId).catch((err: unknown) => cleanupErrors.push(err));
     }
     await deleteThirdparty(clientId).catch((err: unknown) => cleanupErrors.push(err));
   }
