@@ -40,6 +40,7 @@ export interface DolibarrInvoice {
   socid: number;
   date: number; // Unix timestamp
   date_lim_reglement: number;
+  cond_reglement_id?: number; // payment terms
   total_ht: number;
   total_ttc: number;
   total_tva: number;

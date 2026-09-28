@@ -71,6 +71,15 @@ export function serializeThirdpartyIdentity(thirdparty: DolibarrThirdparty): Rec
   });
 }
 
+// Dolibarr line product_type: 0 = product, 1 = service. Other values mark
+// special lines (such as subtotals) and are left out.
+function lineProductType(value: unknown): "product" | "service" | undefined {
+  const type = numberOrUndefined(value);
+  if (type === 0) return "product";
+  if (type === 1) return "service";
+  return undefined;
+}
+
 export function serializeLineItem(line: DolibarrInvoiceLine): Record<string, unknown> {
   const supplierLine = line as DolibarrInvoiceLine & SupplierInvoiceLineFields;
   const label = cleanString(line.product_label) ?? cleanString(line.desc) ?? cleanString(supplierLine.description);
@@ -78,6 +87,7 @@ export function serializeLineItem(line: DolibarrInvoiceLine): Record<string, unk
   return compactObject({
     line_id: dolibarrId(line.id),
     product_ref: cleanString(line.product_ref),
+    product_type: lineProductType(line.product_type),
     label,
     description: cleanString(line.desc) ?? cleanString(supplierLine.description),
     qty: numberOrUndefined(line.qty),

@@ -1,5 +1,6 @@
 import { dolibarr } from "./client.js";
 import { config } from "../config.js";
+import { numberOrUndefined } from "../tools/shared/normalization.js";
 import type {
   DolibarrInvoice,
   DolibarrInvoiceLine,
@@ -17,6 +18,8 @@ export async function listInvoices(params: string): Promise<DolibarrInvoice[]> {
 export async function createInvoice(data: {
   socid: number;
   date: number;
+  // Forces the due date; Dolibarr otherwise derives it from the payment terms.
+  date_lim_reglement?: number;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
   return dolibarr.post<number>("/invoices", data);
@@ -29,11 +32,34 @@ export async function addInvoiceLine(
   return dolibarr.post<number>(`/invoices/${invoiceId}/lines`, line);
 }
 
+/**
+ * Build the PUT body for an invoice header update. A PUT that changes `date`
+ * keeps the old due date, while the Dolibarr UI recomputes it from the payment
+ * terms. The API recomputes it when `cond_reglement_id` is posted after `date`,
+ * so a date change without an explicit due date resends the current terms.
+ * Without payment terms Dolibarr's calculation falls back to the invoice date.
+ */
+export function invoiceHeaderUpdateBody(
+  fields: Record<string, unknown>,
+  current: DolibarrInvoice,
+): Record<string, unknown> {
+  if (fields.date === undefined || fields.date_lim_reglement !== undefined) return fields;
+
+  const paymentTermsId = numberOrUndefined(current.cond_reglement_id);
+  return paymentTermsId !== undefined && paymentTermsId > 0
+    ? { ...fields, cond_reglement_id: paymentTermsId }
+    : { ...fields, date_lim_reglement: fields.date };
+}
+
 export async function updateInvoice(
   invoiceId: number,
   fields: Record<string, unknown>,
+  current: DolibarrInvoice,
 ): Promise<DolibarrInvoice> {
-  return dolibarr.put<DolibarrInvoice>(`/invoices/${invoiceId}`, fields);
+  return dolibarr.put<DolibarrInvoice>(
+    `/invoices/${invoiceId}`,
+    invoiceHeaderUpdateBody(fields, current),
+  );
 }
 
 // Dolibarr resets any field missing from the body; pass a full line built with

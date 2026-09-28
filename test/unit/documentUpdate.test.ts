@@ -10,6 +10,7 @@ const { mergeLineUpdate } = await import("../../src/dolibarr/documents/lineUpdat
 const { DocumentUpdateService } = await import("../../src/dolibarr/documents/documentUpdateService.js");
 const { proposalValidityDaysForUpdate, updateProposal } = await import("../../src/dolibarr/proposals.js");
 const { updateSupplierInvoiceLine } = await import("../../src/dolibarr/supplierInvoices.js");
+const { invoiceHeaderUpdateBody, updateInvoice } = await import("../../src/dolibarr/invoices.js");
 
 type Line = Record<string, unknown> & { id: number };
 interface Doc {
@@ -259,6 +260,32 @@ test("updateProposal always sends duree_validite so Dolibarr keeps the end date"
   assert.equal(request.method, "PUT");
   assert.match(request.url, /\/proposals\/1$/);
   assert.deepEqual(request.body, { note_public: "x", duree_validite: 30 });
+});
+
+test("invoice date changes recompute the due date from the payment terms unless one is given", () => {
+  const current = { id: 1, ref: "FA1", socid: 1, date: sept1, date_lim_reglement: oct1Noon, total_ht: 0, total_ttc: 0, total_tva: 0, statut: 0 };
+  const newDate = Date.UTC(2026, 8, 10, 12) / 1000;
+
+  assert.deepEqual(invoiceHeaderUpdateBody({ note_public: "x" }, current), { note_public: "x" });
+  assert.deepEqual(
+    invoiceHeaderUpdateBody({ date: newDate }, { ...current, cond_reglement_id: "2" as unknown as number }),
+    { date: newDate, cond_reglement_id: 2 },
+  );
+  assert.deepEqual(invoiceHeaderUpdateBody({ date: newDate }, current), { date: newDate, date_lim_reglement: newDate });
+  assert.deepEqual(
+    invoiceHeaderUpdateBody({ date: newDate, date_lim_reglement: oct1Noon }, { ...current, cond_reglement_id: 2 }),
+    { date: newDate, date_lim_reglement: oct1Noon },
+  );
+});
+
+test("updateInvoice posts cond_reglement_id after date so Dolibarr recomputes the due date", async () => {
+  const current = { id: 1, ref: "FA1", socid: 1, date: sept1, date_lim_reglement: oct1Noon, cond_reglement_id: 2, total_ht: 0, total_ttc: 0, total_tva: 0, statut: 0 };
+  const newDate = Date.UTC(2026, 8, 10, 12) / 1000;
+  const request = await captureRequest(() => updateInvoice(1, { date: newDate }, current));
+
+  assert.equal(request.method, "PUT");
+  assert.match(request.url, /\/invoices\/1$/);
+  assert.deepEqual(Object.keys(request.body as object), ["date", "cond_reglement_id"]);
 });
 
 test("updateSupplierInvoiceLine sends supplier field names", async () => {

@@ -113,6 +113,7 @@ Implementation plan:
   - [x] `update_invoice` for draft client invoice header fields (`date`, `customer_ref`, notes) and line edits.
   - [x] `update_supplier_invoice` for draft supplier invoice header fields (`date`, `supplier_invoice_ref`, `label`, notes) and line edits.
   - [x] `update_proposal` for draft proposal header fields (`date`, `valid_until`, `customer_ref`, notes) and line edits. Changing only `date` keeps the validity period.
+  - [x] `due_date` on `create_invoice` (posted as `date_lim_reglement`, which the API forces over the payment terms) and `update_invoice`. A date-only PUT keeps the old due date, so `updateInvoice` resends `cond_reglement_id` after `date` to recompute it like the UI does (verified with 14-day terms on Dolibarr 24.0.0).
   - [x] Line edits: `update_lines` (partial, by `line_id`), `add_lines` (same shape as create), `remove_line_ids`. All inputs are validated before the first write.
   - [x] Non-draft documents are refused with `NOT_DRAFT` and point at the matching `set_*_status` tool.
   - [x] `update_product` and `update_service` (`src/tools/catalog/catalogUpdate.ts`): ref, label, description, price, VAT rate, on sale / on purchase, notes. Type mismatches are refused with `CATALOG_TYPE_MISMATCH`, duplicate refs map to `DUPLICATE_REF`, and ignored price/VAT changes are reported as `warnings`.

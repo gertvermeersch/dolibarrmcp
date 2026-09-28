@@ -21,14 +21,16 @@ export function registerCreateInvoice(server: McpServer): void {
       inputSchema: {
         client: z.string().describe("Client name or Dolibarr ID"),
         date: z.string().describe("Invoice date (YYYY-MM-DD)"),
+        due_date: z.string().optional().describe("Payment due date (YYYY-MM-DD). Defaults to the date derived from the payment terms."),
         lines: z.array(lineSchema).min(1),
         validate: z.boolean().default(false).describe("Validate (confirm) the invoice immediately after creation"),
       },
     },
-    async ({ client, date, lines, validate }) => {
+    async ({ client, date, due_date, lines, validate }) => {
       const result = await createInvoiceService.create({
         thirdparty: client,
         date,
+        dueDate: due_date,
         lines,
         validate,
       });

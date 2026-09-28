@@ -170,6 +170,11 @@ in their explicit lifecycle tools.
 `update_proposal` keeps the validity period when only the date changes, so the end date
 moves with it. Pass `valid_until` to set the end date explicitly.
 
+`create_invoice` and `update_invoice` take an optional `due_date`, which must not be before
+the invoice date. Without it, `create_invoice` lets Dolibarr derive the due date from the
+payment terms. When `update_invoice` changes only the date, it recomputes the due date from
+the payment terms, as the Dolibarr UI does. The REST API alone would keep the old due date.
+
 ### Updating products and services
 
 `update_product` and `update_service` change the ref, label, description, selling price

@@ -398,10 +398,11 @@ test("creates, validates, reads, and deletes a client invoice in the real Doliba
     assert.equal(detailById.id, invoiceId);
     assert.equal(detailById.ref, invoiceRef);
     assert.equal((detailById.client as Record<string, unknown>).id, clientId);
-    assert.ok(
-      (detailById.lines as Array<Record<string, unknown>>).some((line) => line.product_ref === catalogService.ref),
-      `Expected get_invoice_detail by ID to include catalog service ${catalogService.ref}`,
-    );
+    const detailLines = detailById.lines as Array<Record<string, unknown>>;
+    const detailCatalogLine = detailLines.find((line) => line.product_ref === catalogService.ref);
+    assert.ok(detailCatalogLine, `Expected get_invoice_detail by ID to include catalog service ${catalogService.ref}`);
+    assert.equal(detailCatalogLine.product_type, "service");
+    assert.equal(detailLines.find((line) => !line.product_ref)?.product_type, "product");
 
     const detailByRef = await callJsonTool(registerGetInvoiceDetail, "get_invoice_detail", {
       invoice: invoiceRef,
@@ -990,6 +991,7 @@ type UpdateToolResponse = {
   error?: string;
   ref?: string;
   date?: string;
+  due_date?: string;
   valid_until?: string;
   supplier_invoice_ref?: string;
   changes?: { updated_fields: string[]; updated_line_ids: number[]; removed_line_ids: number[] };
@@ -1060,9 +1062,16 @@ test("updates a draft client invoice through update_invoice, then refuses once v
 
   try {
     const service = new DocumentCreationService({ create: createInvoice, addLine: addInvoiceLine, validate: validateInvoice });
-    const created = await service.create({ thirdparty: String(clientId), date: "2026-05-19", validate: false, lines: draftUpdateLines });
+    const created = await service.create({
+      thirdparty: String(clientId),
+      date: "2026-05-19",
+      dueDate: "2026-06-18",
+      validate: false,
+      lines: draftUpdateLines,
+    });
     if (!("success" in created)) assert.fail(`Expected invoice creation success, got ${JSON.stringify(created)}`);
     invoiceId = created.id;
+    assert.equal(dolibarrDateFromTimestamp((await getInvoice(invoiceId)).date_lim_reglement), "2026-06-18");
 
     const [lineAId, lineBId] = sortedLineIds((await getInvoice(invoiceId)).lines);
     // Give line A a discount so the qty-only edit proves it survives.
@@ -1084,9 +1093,28 @@ test("updates a draft client invoice through update_invoice, then refuses once v
     });
     assertDraftLineUpdate(response, lineAId, lineBId);
     assert.equal(response.date, "2026-05-20");
+    // A date-only change recomputes the due date from the payment terms.
+    assert.equal(typeof response.due_date, "string");
+    assert.notEqual(response.due_date, "2026-06-18");
+    assert.ok(String(response.due_date) >= "2026-05-20", `Expected due date on or after 2026-05-20, got ${response.due_date}`);
+
+    const dueDateResponse = await callJsonTool<UpdateToolResponse>(registerUpdateInvoice, "update_invoice", {
+      invoice: String(invoiceId),
+      due_date: "2026-07-31",
+    });
+    assert.equal(dueDateResponse.success, true, `Expected due date update success, got ${JSON.stringify(dueDateResponse)}`);
+    assert.equal(dueDateResponse.date, "2026-05-20");
+    assert.equal(dueDateResponse.due_date, "2026-07-31");
+
+    const earlyDue = await callJsonTool<UpdateToolResponse>(registerUpdateInvoice, "update_invoice", {
+      invoice: String(invoiceId),
+      due_date: "2026-05-01",
+    });
+    assert.equal(earlyDue.error, "VALIDATION_ERROR");
 
     const updated = (await getInvoice(invoiceId)) as Awaited<ReturnType<typeof getInvoice>> & Record<string, unknown>;
     assert.equal(dolibarrDateFromTimestamp(updated.date), "2026-05-20");
+    assert.equal(dolibarrDateFromTimestamp(updated.date_lim_reglement), "2026-07-31");
     assert.equal(updated.ref_client, "MCP-IT-PO");
     assert.equal(updated.note_private, "Integration update note");
 

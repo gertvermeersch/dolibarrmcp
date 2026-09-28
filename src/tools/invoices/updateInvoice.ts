@@ -29,11 +29,20 @@ const updateInvoiceService = new DocumentUpdateService(
     reopenTool: "set_invoice_status (status: draft)",
     headerFields: {
       date: "date",
+      due_date: "date_lim_reglement",
       customer_ref: "ref_client",
       note_public: "note_public",
       note_private: "note_private",
     },
-    dateFields: ["date"],
+    dateFields: ["date", "due_date"],
+    validateHeader: (fields, current) => {
+      if (fields.date_lim_reglement === undefined) return undefined;
+      const invoiceDate = isoDateFromTimestamp(fields.date ?? current.date);
+      const dueDate = isoDateFromTimestamp(fields.date_lim_reglement);
+      return invoiceDate && dueDate && dueDate < invoiceDate
+        ? "due_date must be on or after the invoice date."
+        : undefined;
+    },
   },
 );
 
@@ -45,7 +54,8 @@ export function registerUpdateInvoice(server: McpServer): void {
       description: "Update a draft client invoice: header fields and line edits in one call. Only draft invoices can be updated; validation, payments, and status changes use their own tools.",
       inputSchema: {
         invoice: z.string().describe("Invoice reference (e.g. (PROV42)) or Dolibarr ID"),
-        date: z.string().optional().describe("Invoice date (YYYY-MM-DD)"),
+        date: z.string().optional().describe("Invoice date (YYYY-MM-DD). Without due_date, the due date is recomputed from the payment terms, as in the Dolibarr UI."),
+        due_date: z.string().optional().describe("Payment due date (YYYY-MM-DD)"),
         customer_ref: z.string().optional().describe("Client's own reference, such as a PO number"),
         note_public: z.string().optional(),
         note_private: z.string().optional(),
@@ -71,7 +81,10 @@ export function registerUpdateInvoice(server: McpServer): void {
       return documentUpdateResponse(result, {
         idKey: "invoice_id",
         statusLabel: (updated) => invoiceStatusLabel(updated.statut),
-        extra: (updated) => ({ date: isoDateFromTimestamp(updated.date) }),
+        extra: (updated) => ({
+          date: isoDateFromTimestamp(updated.date),
+          due_date: isoDateFromTimestamp(updated.date_lim_reglement),
+        }),
       });
     },
   );

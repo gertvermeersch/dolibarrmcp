@@ -10,6 +10,8 @@ import {
 export interface DocumentCreationInput {
   thirdparty: string;
   date: string;
+  /** Optional YYYY-MM-DD due date; without it Dolibarr derives one from the payment terms. */
+  dueDate?: string;
   refSupplier?: string;
   lines: LineItemInput[];
   validate: boolean;
@@ -37,6 +39,7 @@ interface DocumentApi {
   create(data: {
     socid: number;
     date: number;
+    date_lim_reglement?: number;
     ref_supplier?: string;
     lines?: Partial<DolibarrInvoiceLine>[];
   }): Promise<number>;
@@ -81,9 +84,25 @@ export class DocumentCreationService {
       };
     }
 
+    if (input.dueDate !== undefined) {
+      if (!isIsoDateString(input.dueDate)) {
+        return {
+          error: "VALIDATION_ERROR",
+          message: "Due date must be a valid YYYY-MM-DD calendar date.",
+        };
+      }
+      if (input.dueDate < input.date) {
+        return {
+          error: "VALIDATION_ERROR",
+          message: "Due date must be on or after the document date.",
+        };
+      }
+    }
+
     const id = await this.api.create({
       socid: resolvedThirdparty.id,
       date: unixTimestampFromIsoDate(input.date),
+      ...(input.dueDate ? { date_lim_reglement: unixTimestampFromIsoDate(input.dueDate) } : {}),
       ...(input.refSupplier ? { ref_supplier: input.refSupplier } : {}),
     });
 

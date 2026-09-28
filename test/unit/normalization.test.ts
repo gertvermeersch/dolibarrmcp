@@ -83,6 +83,7 @@ test("serializes line items without raw product IDs and with numeric values", ()
     fk_product: "5",
     product_ref: "REPAIR",
     product_label: "Example\r\nrepair service",
+    product_type: "1",
     desc: "Example\r\nrepair service",
     qty: "2",
     subprice: "40.00000000",
@@ -96,6 +97,7 @@ test("serializes line items without raw product IDs and with numeric values", ()
 
   assert.equal(serialized.line_id, 179);
   assert.equal(serialized.product_ref, "REPAIR");
+  assert.equal(serialized.product_type, "service");
   assert.equal(serialized.label, "Example repair service");
   assert.equal(serialized.qty, 2);
   assert.equal(serialized.unit_price, 40);
