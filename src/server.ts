@@ -14,6 +14,8 @@ import { registerMarkInvoicePaid } from "./tools/invoices/markInvoicePaid.js";
 import { registerSetInvoiceStatus } from "./tools/invoices/setInvoiceStatus.js";
 import { registerSetSupplierInvoiceStatus } from "./tools/invoices/setSupplierInvoiceStatus.js";
 import { registerValidateInvoice } from "./tools/invoices/validateInvoice.js";
+import { registerListBankAccounts } from "./tools/payments/listBankAccounts.js";
+import { registerListPaymentModes } from "./tools/payments/listPaymentModes.js";
 import { registerCreateProposal } from "./tools/proposals/createProposal.js";
 import { registerDeleteProposal } from "./tools/proposals/deleteProposal.js";
 import { registerGetProposalDetail } from "./tools/proposals/getProposalDetail.js";
@@ -45,6 +47,9 @@ export function registerTools(server: McpServer): void {
   registerGetSupplierInvoiceDetail(server);
   registerGetMonthlyRevenue(server);
   registerGetOutstandingReceivables(server);
+
+  registerListPaymentModes(server);
+  registerListBankAccounts(server);
 
   registerCreateProposal(server);
   registerGetProposalDetail(server);

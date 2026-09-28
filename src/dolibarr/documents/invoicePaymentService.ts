@@ -12,6 +12,18 @@ import {
   setSupplierInvoicePaid,
 } from "../supplierInvoices.js";
 import type { DolibarrInvoice, DolibarrInvoicePayment } from "../../types/dolibarr.js";
+import { listBankAccounts, listPaymentModes } from "../paymentOptions.js";
+import {
+  bankAccountId,
+  resolveBankAccount,
+  resolvePaymentMode,
+  type PaymentOptionSelector,
+} from "../../resolvers/paymentOptions.js";
+import {
+  bankAccountSummary,
+  paymentModeAvailability,
+  paymentModeSummary,
+} from "./paymentOptionSummaries.js";
 import { isPaidInvoice, isoDateFromTimestamp, unixTimestampFromIsoDate } from "../../tools/shared/normalization.js";
 
 type InvoiceType = "client" | "supplier";
@@ -20,8 +32,8 @@ export type InvoicePaymentChoice =
   | {
       mode: "create";
       date?: string;
-      paymentModeId: number;
-      accountId: number;
+      paymentMode: PaymentOptionSelector;
+      bankAccount: PaymentOptionSelector;
       number?: string;
       comment?: string;
       chequeIssuer?: string;
@@ -63,8 +75,8 @@ function adapterFor(invoiceType: InvoiceType): InvoiceAdapter {
       createPayment: (id, payment, datepaye) =>
         createInvoicePayment(id, {
           datepaye,
-          paymentid: payment.paymentModeId,
-          accountid: payment.accountId,
+          paymentid: Number(payment.paymentMode),
+          accountid: Number(payment.bankAccount),
           num_payment: payment.number,
           comment: payment.comment,
           chqemetteur: payment.chequeIssuer,
@@ -80,8 +92,8 @@ function adapterFor(invoiceType: InvoiceType): InvoiceAdapter {
     createPayment: (id, payment, datepaye) =>
       createSupplierInvoicePayment(id, {
         datepaye,
-        payment_mode_id: payment.paymentModeId,
-        accountid: payment.accountId,
+        payment_mode_id: Number(payment.paymentMode),
+        accountid: Number(payment.bankAccount),
         num_payment: payment.number,
         comment: payment.comment,
         chqemetteur: payment.chequeIssuer,
@@ -169,14 +181,45 @@ export async function markInvoicePaid(input: MarkInvoicePaidInput): Promise<Reco
   }
 
   if (input.payment?.mode === "create") {
-    const date = input.payment.date ?? isoDateFromTimestamp(Date.now());
+    const createPayment = input.payment;
+    const [paymentModes, bankAccounts] = await Promise.all([
+      listPaymentModes(),
+      listBankAccounts(),
+    ]);
+    const resolvedMode = resolvePaymentMode(createPayment.paymentMode, paymentModes);
+    if (!resolvedMode.ok) return resolvedMode.error;
+    if (!paymentModeAvailability(resolvedMode.value).includes(input.invoiceType)) {
+      return {
+        error: "PAYMENT_MODE_NOT_APPLICABLE",
+        message: `Payment mode '${resolvedMode.value.code}' is not available for ${input.invoiceType} invoices.`,
+        action: `Run list_payment_modes with invoice_type='${input.invoiceType}' and choose one of the returned modes.`,
+      };
+    }
+    const resolvedAccount = resolveBankAccount(createPayment.bankAccount, bankAccounts);
+    if (!resolvedAccount.ok) return resolvedAccount.error;
+    const accountId = bankAccountId(resolvedAccount.value);
+    if (accountId === undefined) {
+      throw new Error("Dolibarr returned a bank account without a valid ID.");
+    }
+
+    const date = createPayment.date ?? isoDateFromTimestamp(Date.now());
     if (!date) throw new Error("Could not determine the payment date.");
     const paymentId = await adapter.createPayment(
       input.invoiceId,
-      input.payment,
+      {
+        ...createPayment,
+        paymentMode: Number(resolvedMode.value.id),
+        bankAccount: accountId,
+      },
       unixTimestampFromIsoDate(date),
     );
-    paymentResult = { action: "created", id: Number(paymentId), date };
+    paymentResult = {
+      action: "created",
+      id: Number(paymentId),
+      date,
+      mode: paymentModeSummary(resolvedMode.value),
+      bank_account: bankAccountSummary(resolvedAccount.value),
+    };
 
     // closepaidinvoices=yes normally closes the invoice in the same Dolibarr
     // transaction. Only call settopaid when an installation leaves it open.

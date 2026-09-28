@@ -73,6 +73,30 @@ export interface DolibarrInvoicePayment {
   typeline?: string;
 }
 
+export interface DolibarrPaymentMode {
+  id: number | string;
+  code: string;
+  type?: number | string;
+  label: string;
+  module?: string;
+}
+
+export interface DolibarrBankAccount {
+  id?: number | string;
+  rowid?: number | string;
+  ref?: string;
+  label?: string;
+  bank?: string;
+  type?: number | string;
+  currency_code?: string;
+  status?: number | string;
+  clos?: number | string;
+  number?: string;
+  iban?: string;
+  iban_prefix?: string;
+  account_number?: string;
+}
+
 export interface DolibarrProposal {
   id: number;
   ref: string;

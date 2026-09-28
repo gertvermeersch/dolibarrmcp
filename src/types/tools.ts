@@ -7,6 +7,11 @@ export type McpErrorCode =
   | "PROPOSAL_NOT_FOUND"
   | "SUPPLIER_INVOICE_NOT_FOUND"
   | "PAYMENT_NOT_LINKED"
+  | "PAYMENT_MODE_NOT_FOUND"
+  | "PAYMENT_MODE_AMBIGUOUS"
+  | "PAYMENT_MODE_NOT_APPLICABLE"
+  | "BANK_ACCOUNT_NOT_FOUND"
+  | "BANK_ACCOUNT_AMBIGUOUS"
   | "NOT_FOUND"
   | "DELETES_DISABLED"
   | "MUST_REOPEN"
@@ -44,6 +49,7 @@ export interface LineResolution {
 export interface LineItemInput {
   product_ref?: string;
   description?: string;
+  product_type?: 0 | 1; // free-text line type: 0 = product, 1 = service
   qty: number;
   unit_price?: number; // required for free-text lines, optional override for catalog lines
   vat_rate?: number;   // required for free-text lines, optional override for catalog lines

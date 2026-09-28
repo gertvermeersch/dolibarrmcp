@@ -41,6 +41,7 @@ src/
 └── tools/
     ├── catalog/      Product and service catalog tools
     ├── invoices/     Client/supplier invoice and receivables tools
+    ├── payments/     Payment-mode and bank-account discovery tools
     ├── proposals/    Proposal/quote tools
     ├── search/       Cross-domain search tools
     ├── shared/       Shared schemas and response helpers for tool handlers
@@ -182,6 +183,7 @@ invoice-like or proposal-like documents with thirdparty resolution and line item
 - `validate_proposal` (write)
 - `set_proposal_status` (write)
 - `mark_invoice_paid` (write; client and supplier invoices, with optional payment creation)
+- `list_payment_modes` and `list_bank_accounts` (read; payment option discovery)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver
 - `dolibarr/client.ts` — fetch wrapper + error normalisation

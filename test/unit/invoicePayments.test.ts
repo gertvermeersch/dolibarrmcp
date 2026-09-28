@@ -82,7 +82,24 @@ test("marks a validated client invoice paid without creating a payment", async (
 
 test("creates a supplier payment for the remaining balance and closes atomically", async () => {
   await withFetchResponses(
-    [{ body: invoice(1) }, { body: 91 }, { body: invoice(2, 1) }],
+    [
+      { body: invoice(1) },
+      { body: [{ id: "6", code: "VIR", label: "Bank transfer", type: "2" }] },
+      {
+        body: [{
+          id: "3",
+          ref: "BELFIUS",
+          label: "Belfius test account",
+          bank: "Belfius",
+          type: "1",
+          currency_code: "EUR",
+          status: "0",
+          iban: "BE12345678901234",
+        }],
+      },
+      { body: 91 },
+      { body: invoice(2, 1) },
+    ],
     async (requests) => {
       const result = await markInvoicePaid({
         invoiceType: "supplier",
@@ -90,8 +107,8 @@ test("creates a supplier payment for the remaining balance and closes atomically
         payment: {
           mode: "create",
           date: "2026-08-11",
-          paymentModeId: 6,
-          accountId: 3,
+          paymentMode: "VIR",
+          bankAccount: "Belfius test account",
           number: "TRX-9",
           comment: "Paid by transfer",
         },
@@ -103,24 +120,45 @@ test("creates a supplier payment for the remaining balance and closes atomically
         supplier_invoice_id: 42,
         ref: "INV-42",
         status: "paid",
-        payment: { action: "created", id: 91, date: "2026-08-11" },
-      });
-      assert.deepEqual(requests, [
-        { path: "/supplierinvoices/42?includeLines=1", method: "GET", body: undefined },
-        {
-          path: "/supplierinvoices/42/payments",
-          method: "POST",
-          body: {
-            datepaye: Date.UTC(2026, 7, 11, 12) / 1000,
-            payment_mode_id: 6,
-            accountid: 3,
-            num_payment: "TRX-9",
-            comment: "Paid by transfer",
-            closepaidinvoices: "yes",
+        payment: {
+          action: "created",
+          id: 91,
+          date: "2026-08-11",
+          mode: {
+            id: 6,
+            code: "VIR",
+            label: "Bank transfer",
+            type: 2,
+            available_for: ["client", "supplier"],
+          },
+          bank_account: {
+            id: 3,
+            ref: "BELFIUS",
+            label: "Belfius test account",
+            bank_name: "Belfius",
+            type: "current",
+            currency: "EUR",
+            status: "open",
+            iban_last4: "1234",
           },
         },
-        { path: "/supplierinvoices/42?includeLines=1", method: "GET", body: undefined },
-      ]);
+      });
+      assert.equal(requests[0]?.path, "/supplierinvoices/42?includeLines=1");
+      assert.match(requests[1]?.path ?? "", /^\/setup\/dictionary\/payment_types\?/);
+      assert.match(requests[2]?.path ?? "", /^\/bankaccounts\?/);
+      assert.deepEqual(requests[3], {
+        path: "/supplierinvoices/42/payments",
+        method: "POST",
+        body: {
+          datepaye: Date.UTC(2026, 7, 11, 12) / 1000,
+          payment_mode_id: 6,
+          accountid: 3,
+          num_payment: "TRX-9",
+          comment: "Paid by transfer",
+          closepaidinvoices: "yes",
+        },
+      });
+      assert.equal(requests[4]?.path, "/supplierinvoices/42?includeLines=1");
     },
   );
 });
@@ -169,7 +207,7 @@ test("is idempotent and never creates a payment for an already-paid invoice", as
     const result = await markInvoicePaid({
       invoiceType: "client",
       invoiceId: 42,
-      payment: { mode: "create", paymentModeId: 6, accountId: 3 },
+      payment: { mode: "create", paymentMode: 6, bankAccount: 3 },
     });
 
     assert.equal(result.success, true);

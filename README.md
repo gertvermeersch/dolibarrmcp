@@ -115,6 +115,8 @@ Read tools:
 - `search_products`
 - `search_services`
 - `search_thirdparties`
+- `list_payment_modes`
+- `list_bank_accounts`
 
 Write tools:
 
@@ -135,7 +137,14 @@ See `todo.md` for the current implementation and verification checklist.
 `mark_invoice_paid` handles both client and supplier invoices. The invoice must already be
 validated. With no `payment` input it only marks the invoice paid. With
 `payment.mode: "create"`, it creates a payment for the remaining balance and asks Dolibarr to
-close the invoice in the same transaction. A payment type ID and bank account ID are required.
+close the invoice in the same transaction. `payment_mode` accepts an ID, exact code, or unique
+label; `bank_account` accepts an ID, exact ref, or unique label/bank name. Use
+`list_payment_modes` and `list_bank_accounts` to inspect the available choices. Numeric
+`payment_mode_id` and `account_id` remain supported for compatibility.
+
+Before creating the payment, the tool resolves both selections against Dolibarr. Its response
+includes the resolved payment mode and bank account names, refs, and masked account identifier,
+so callers can confirm where the payment was recorded.
 
 Dolibarr's invoice REST APIs can list payments already allocated to an invoice, but cannot add
 a new allocation for a previously created payment. `payment.mode: "existing"` therefore
@@ -151,6 +160,7 @@ Tools are grouped by business domain under `src/tools/`:
 
 - `catalog`
 - `invoices`
+- `payments`
 - `proposals`
 - `search`
 - `thirdparties`

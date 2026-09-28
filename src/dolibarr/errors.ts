@@ -89,6 +89,18 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
       action: "Enable the Dolibarr Customer orders module and grant the API user order permissions required by this tool.",
     };
   }
+  if (path.startsWith("/bankaccounts")) {
+    return {
+      name: "Bank accounts",
+      action: "Enable the Dolibarr Bank module and grant the API user read access to bank accounts.",
+    };
+  }
+  if (path.startsWith("/setup/dictionary/payment_types")) {
+    return {
+      name: "Payment types",
+      action: "Grant the API user read access to proposals, orders, or invoices so Dolibarr permits payment-type lookup.",
+    };
+  }
   return undefined;
 }
 

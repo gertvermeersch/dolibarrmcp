@@ -134,6 +134,9 @@ Implementation plan:
 - [x] Optionally create a full remaining-balance payment through `/payments` and close atomically.
 - [x] Verify an already-linked payment by reference or payment number before closing.
 - [x] Document that this Dolibarr REST version cannot newly allocate an existing payment to an invoice.
+- [x] Add `list_payment_modes` and `list_bank_accounts` so callers do not guess numeric IDs.
+- [x] Resolve payment modes and bank accounts by ID, code/ref, or unique human-readable name.
+- [x] Echo resolved payment and account identities after payment creation.
 - [ ] Verify payment creation against a disposable invoice on the real development instance, including cleanup of the generated payment and bank entry.
 - [ ] Decide the public MCP delete policy before exposing destructive tools.
   - [ ] Prefer guarded deletes such as `delete_invoice`, `delete_supplier_invoice`, `delete_proposal`, and `delete_thirdparty` with an explicit `confirm: true` input.
