@@ -80,7 +80,7 @@ export async function resolveLine(
         qty: input.qty,
         subprice: input.unit_price,
         tva_tx: input.vat_rate,
-        product_type: input.product_type ?? 0,
+        product_type: input.product_type === "service" ? 1 : 0,
       },
       resolution: {
         index,

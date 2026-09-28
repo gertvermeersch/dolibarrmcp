@@ -49,7 +49,7 @@ export interface LineResolution {
 export interface LineItemInput {
   product_ref?: string;
   description?: string;
-  product_type?: 0 | 1; // free-text line type: 0 = product, 1 = service
+  product_type?: "product" | "service";
   qty: number;
   unit_price?: number; // required for free-text lines, optional override for catalog lines
   vat_rate?: number;   // required for free-text lines, optional override for catalog lines

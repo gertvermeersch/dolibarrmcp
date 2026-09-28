@@ -10,7 +10,7 @@ const { resolveLine } = await import("../../src/resolvers/product.js");
 test("passes the selected product type to a free-text line", async () => {
   const result = await resolveLine({
     description: "Consulting",
-    product_type: 1,
+    product_type: "service",
     qty: 2,
     unit_price: 75,
     vat_rate: 21,
