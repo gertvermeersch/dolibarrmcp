@@ -21,7 +21,7 @@ It connects to Dolibarr through the REST API and serves MCP over HTTP.
 
    | Variable | Description |
    | --- | --- |
-   | `MCP_API_KEY` | Secret expected from MCP clients in the `X-API-Key` header. |
+   | `MCP_API_KEY` | Secret expected from MCP clients in the `X-API-Key` header, or as `Authorization: Bearer <secret>`. |
    | `DOLIBARR_URL` | Full Dolibarr REST API base URL, for example `http://host.docker.internal/api/index.php`. |
    | `DOLIBARR_API_KEY` | API token from the Dolibarr user account. |
    | `DOLIBARR_TIMEZONE` | Optional. Business timezone for Dolibarr date-only fields. Defaults to `Europe/Brussels`. |

@@ -21,7 +21,7 @@ internally, and returns denormalized, LLM-ready output.
 
 ```
 src/
-├── index.ts          Entry point — HTTP server, X-API-Key auth, MCP wiring
+├── index.ts          Entry point — HTTP server, X-API-Key / Bearer auth, MCP wiring
 ├── server.ts         Registers all tools with the MCP server instance
 ├── config.ts         Reads and validates env vars; throws on startup if any are missing
 ├── types/
@@ -125,7 +125,7 @@ See `.env.example`. All vars are required at startup except `MCP_HTTP_HOST` and 
 which default to `0.0.0.0:3000`.
 
 ```
-MCP_API_KEY        Secret used to authenticate incoming MCP requests (X-API-Key header)
+MCP_API_KEY        Secret used to authenticate incoming MCP requests (X-API-Key header or Authorization: Bearer)
 DOLIBARR_URL       Full base URL to Dolibarr REST API
 DOLIBARR_API_KEY   Dolibarr personal API token
 DOLIBARR_DEBUG     Optional: true/1/yes/on logs Dolibarr requests and responses

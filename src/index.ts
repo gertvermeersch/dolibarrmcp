@@ -9,6 +9,7 @@ import { registerTools } from "./server.js";
 // header list when a client does not explicitly send Access-Control-Request-Headers.
 const defaultAllowedCorsHeaders = [
   "Accept",
+  "Authorization",
   "Content-Type",
   "Last-Event-ID",
   "mcp-protocol-version",
@@ -75,6 +76,16 @@ function logMcpRequest(req: IncomingMessage, body: unknown, sessionId?: string):
       sessionId,
     });
   }
+}
+
+// Accept the shared key either as `X-API-Key: <key>` or, for clients such as
+// OpenWork that only speak standard HTTP auth, as `Authorization: Bearer <key>`.
+function extractApiKey(req: IncomingMessage): string | undefined {
+  const apiKey = req.headers["x-api-key"];
+  if (typeof apiKey === "string" && apiKey) return apiKey;
+
+  const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? "");
+  return match?.[1].trim();
 }
 
 function createMcpServer(): McpServer {
@@ -153,8 +164,7 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
   }
 
   // Gate all MCP traffic behind a simple shared API key before doing session work.
-  const apiKey = req.headers["x-api-key"];
-  if (apiKey !== config.mcpApiKey) {
+  if (extractApiKey(req) !== config.mcpApiKey) {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Unauthorized" }));
     return;
