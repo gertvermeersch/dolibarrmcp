@@ -225,6 +225,7 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
   - [x] Move client/supplier/both/other logic into one domain helper (`src/dolibarr/thirdpartyType.ts`, pure and free of `client.js`).
   - [x] Reuse it from resolvers and serializers (`thirdparties.ts` re-exports it for existing importers).
 - [ ] Add a reusable pagination helper for Dolibarr list endpoints.
+  - [x] `listAllPages` exists in `src/dolibarr/pagination.ts` and is used by the contract and intervention list helpers.
   - [ ] Replace the page loops in revenue and receivables tools once the helper exists.
   - [ ] Reuse it for upcoming analytics and decision-support tools.
 - [ ] Add focused unit tests as refactors land.
@@ -248,3 +249,18 @@ Keep these scoped and behavior-preserving. The current layout is good enough; th
 - [ ] Update `README.md` implemented-tool lists after the read tools are completed.
 - [ ] Document the required Dolibarr modules and permissions per tool.
 - [ ] Document the expected cleanup behavior for integration tests.
+
+## Maintenance contracts and interventions
+
+Implemented from the maintenance requirements (tools: `list_contracts_by_expiry`, `get_contract_detail`, `list_interventions`, `get_maintenance_overview`, `create_contract`, `create_renewal_invoice`, `create_intervention`, `set_contract_status`; `search_across` now includes contracts and interventions).
+
+- [x] Unit tests for the rules, services and tool output (`test/unit/contractRules.test.ts`, `maintenanceServices.test.ts`, `maintenanceTools.test.ts`).
+- [x] Integration test `runs the maintenance contract lifecycle ...` in `test/integration/dolibarr-api.test.ts`.
+- [x] Run the integration test against a test Dolibarr (2026-10-19, Dolibarr 24 test instance; passes with and without `DOLIBARR_DEFAULT_COMMERCIAL_ID`). Verified:
+  - [x] `GET /contracts/{id}` returns the renewal invoice under `linkedObjectsIds.facture`.
+  - [x] `fk_contrat` filters in `GET /interventions?sqlfilters=(t.fk_contrat:=:id)` and interventions get dated by their line date.
+  - [x] Invoice lines accept `date_start`/`date_end` on `POST /invoices/{id}/lines`.
+  - [x] `/users/info` works for the API user once it has user read rights; before that `create_contract` needs `DOLIBARR_DEFAULT_COMMERCIAL_ID`.
+  - [x] The integration test's raw-API cleanup deletes the invoice, closed intervention, validated contract and thirdparty.
+  - Note: the API user needs create rights on contracts and interventions; without them Dolibarr returns 403 and the interventions API makes `get_contract_detail` / `get_maintenance_overview` report `interventions_available: false`.
+- [ ] No tool extends a contract's line dates after a renewal, so a renewed contract keeps showing as expired/expiring (only `renewal_invoiced` changes). Decide whether a `renew_contract` tool is wanted.

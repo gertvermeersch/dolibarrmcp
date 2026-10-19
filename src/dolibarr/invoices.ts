@@ -20,6 +20,9 @@ export async function createInvoice(data: {
   date: number;
   // Forces the due date; Dolibarr otherwise derives it from the payment terms.
   date_lim_reglement?: number;
+  // Links the new invoice to other objects, such as `{ contrat: 12 }`. Only this
+  // field links on creation; `origin` and `origin_type` are ignored by the API.
+  linked_objects?: Record<string, number>;
   lines?: Partial<DolibarrInvoiceLine>[];
 }): Promise<number> {
   return dolibarr.post<number>("/invoices", data);

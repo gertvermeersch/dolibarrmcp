@@ -4,6 +4,12 @@ import { registerSearchProducts } from "./tools/catalog/searchProducts.js";
 import { registerSearchServices } from "./tools/catalog/searchServices.js";
 import { registerUpdateProduct } from "./tools/catalog/updateProduct.js";
 import { registerUpdateService } from "./tools/catalog/updateService.js";
+import { registerCreateContract } from "./tools/contracts/createContract.js";
+import { registerCreateRenewalInvoice } from "./tools/contracts/createRenewalInvoice.js";
+import { registerGetContractDetail } from "./tools/contracts/getContractDetail.js";
+import { registerGetMaintenanceOverview } from "./tools/contracts/getMaintenanceOverview.js";
+import { registerListContractsByExpiry } from "./tools/contracts/listContractsByExpiry.js";
+import { registerSetContractStatus } from "./tools/contracts/setContractStatus.js";
 import { registerCreateInvoice } from "./tools/invoices/createInvoice.js";
 import { registerCreateSupplierInvoice } from "./tools/invoices/createSupplierInvoice.js";
 import { registerDeleteInvoice } from "./tools/invoices/deleteInvoice.js";
@@ -18,6 +24,8 @@ import { registerSetSupplierInvoiceStatus } from "./tools/invoices/setSupplierIn
 import { registerUpdateInvoice } from "./tools/invoices/updateInvoice.js";
 import { registerUpdateSupplierInvoice } from "./tools/invoices/updateSupplierInvoice.js";
 import { registerValidateInvoice } from "./tools/invoices/validateInvoice.js";
+import { registerCreateIntervention } from "./tools/interventions/createIntervention.js";
+import { registerListInterventions } from "./tools/interventions/listInterventions.js";
 import { registerListBankAccounts } from "./tools/payments/listBankAccounts.js";
 import { registerListPaymentModes } from "./tools/payments/listPaymentModes.js";
 import { registerCreateProposal } from "./tools/proposals/createProposal.js";
@@ -66,6 +74,16 @@ export function registerTools(server: McpServer): void {
   registerValidateProposal(server);
   registerSetProposalStatus(server);
   registerDeleteProposal(server);
+
+  registerListContractsByExpiry(server);
+  registerGetContractDetail(server);
+  registerGetMaintenanceOverview(server);
+  registerCreateContract(server);
+  registerCreateRenewalInvoice(server);
+  registerSetContractStatus(server);
+
+  registerListInterventions(server);
+  registerCreateIntervention(server);
 
   registerSearchAcross(server);
   registerSearchDocumentContent(server);

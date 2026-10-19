@@ -67,6 +67,15 @@ async function loadApi() {
     ...(await import("../../src/tools/search/searchDocumentContent.js")),
     ...(await import("../../src/tools/thirdparties/getClientOverview.js")),
     ...(await import("../../src/tools/thirdparties/searchThirdparties.js")),
+    ...(await import("../../src/tools/contracts/createContract.js")),
+    ...(await import("../../src/tools/contracts/createRenewalInvoice.js")),
+    ...(await import("../../src/tools/contracts/getContractDetail.js")),
+    ...(await import("../../src/tools/contracts/getMaintenanceOverview.js")),
+    ...(await import("../../src/tools/contracts/listContractsByExpiry.js")),
+    ...(await import("../../src/tools/contracts/setContractStatus.js")),
+    ...(await import("../../src/tools/interventions/createIntervention.js")),
+    ...(await import("../../src/tools/interventions/listInterventions.js")),
+    ...(await import("../../src/dolibarr/maintenance/contractRules.js")),
     ...(await import("../../src/dolibarr/errors.js"))
   };
 }
@@ -1412,6 +1421,196 @@ test("updates a disposable service and product through the catalog update tools"
   } finally {
     for (const id of createdIds) {
       await dolibarr.delete(`/products/${id}`).catch((err: unknown) => cleanupErrors.push(err));
+    }
+  }
+
+  throwWithCleanupErrors(testError, cleanupErrors);
+});
+
+test("runs the maintenance contract lifecycle through the contract and intervention tools", {
+  skip: integrationTestSkipReason(),
+}, async () => {
+  const {
+    addDaysIso,
+    addMonthsIso,
+    createThirdparty,
+    deleteThirdparty,
+    dolibarr,
+    registerCreateContract,
+    registerCreateIntervention,
+    registerCreateRenewalInvoice,
+    registerGetContractDetail,
+    registerGetMaintenanceOverview,
+    registerListContractsByExpiry,
+    registerListInterventions,
+    registerSearchAcross,
+    registerSetContractStatus,
+  } = await loadApi();
+
+  const service = await findActiveService(dolibarr);
+  if (!service) {
+    assert.ok(true, "No active service available for the maintenance lifecycle test.");
+    return;
+  }
+
+  const clientId = await createThirdparty({
+    name: uniqueName("Maintenance Client"),
+    client: 1,
+    supplier: 0,
+    email: `mcp-it-maintenance-${Date.now()}@example.test`,
+    town: "Integration Test",
+  });
+
+  const today = todayIsoDate();
+  // A 12-month contract that ended 20 days ago, so it is expired and due for renewal.
+  const endDate = addDaysIso(today, -20);
+  const startDate = addMonthsIso(addDaysIso(endDate, 1), -12);
+  // Shortly after the start, so older than the 12-month maintenance lookback.
+  const interventionDate = addDaysIso(startDate, 10);
+  let contractId: number | undefined;
+  let renewalInvoiceId: number | undefined;
+  let interventionId: number | undefined;
+  let testError: unknown;
+  const cleanupErrors: unknown[] = [];
+
+  try {
+    const created = await callJsonTool<Record<string, any>>(registerCreateContract, "create_contract", {
+      client: String(clientId),
+      start_date: startDate,
+      services: [{ product_ref: service.ref, qty: 2 }],
+    });
+    assert.equal(created.success, true, JSON.stringify(created));
+    contractId = created.contract_id as number;
+    const contractRef = created.ref as string;
+    assert.equal(created.end_date, endDate);
+    assert.equal(created.warnings, undefined, "all lines should be running after activation");
+
+    const expired = await callJsonTool<Record<string, any>>(registerListContractsByExpiry, "list_contracts_by_expiry", {
+      thirdparty_id: clientId,
+    });
+    assert.equal(expired.count, 1, JSON.stringify(expired));
+    assert.equal(expired.contracts[0].ref, contractRef);
+    assert.equal(expired.contracts[0].status, "expired");
+    assert.equal(expired.contracts[0].days_until_end, -20);
+    assert.equal(expired.contracts[0].renewal_invoiced, false);
+
+    const hidden = await callJsonTool<Record<string, any>>(registerListContractsByExpiry, "list_contracts_by_expiry", {
+      thirdparty_id: clientId,
+      include_expired: false,
+    });
+    assert.equal(hidden.count, 0);
+
+    const detail = await callJsonTool<Record<string, any>>(registerGetContractDetail, "get_contract_detail", {
+      contract: contractRef,
+    });
+    assert.equal(detail.id, contractId);
+    assert.equal(detail.lines.length, 1);
+    assert.equal(detail.lines[0].status, "running");
+    assert.equal(detail.lines[0].expired, true);
+    assert.equal(detail.invoices.length, 0);
+
+    const intervention = await callJsonTool<Record<string, any>>(registerCreateIntervention, "create_intervention", {
+      contract: String(contractId),
+      date: interventionDate,
+      duration_hours: 1.5,
+      description: `${integrationLabel("Maintenance visit")} ${Date.now()}`,
+    });
+    assert.equal(intervention.success, true, JSON.stringify(intervention));
+    interventionId = intervention.intervention_id as number;
+    assert.equal(intervention.intervention.status, "done");
+    assert.equal(intervention.intervention.contract, contractRef);
+    assert.equal(intervention.intervention.duration_hours, 1.5);
+
+    const listed = await callJsonTool<Record<string, any>>(registerListInterventions, "list_interventions", {
+      contract_id: contractId,
+      status: "done",
+      from: startDate,
+      to: today,
+    });
+    assert.equal(listed.count, 1, JSON.stringify(listed));
+    assert.equal(listed.interventions[0].date, interventionDate);
+    assert.equal(listed.interventions[0].contract, contractRef);
+
+    const overview = await callJsonTool<Record<string, any>>(registerGetMaintenanceOverview, "get_maintenance_overview", {
+      thirdparty_id: clientId,
+    });
+    assert.equal(overview.contracts.length, 1, JSON.stringify(overview));
+    assert.equal(overview.contracts[0].last_done_intervention.date, interventionDate);
+    // The visit is more than 12 months ago, so the contract is flagged.
+    assert.equal(overview.contracts[0].no_maintenance_last_12_months, true);
+
+    const renewal = await callJsonTool<Record<string, any>>(registerCreateRenewalInvoice, "create_renewal_invoice", {
+      contract: contractRef,
+    });
+    assert.equal(renewal.success, true, JSON.stringify(renewal));
+    renewalInvoiceId = renewal.invoice_id as number;
+    assert.equal(renewal.linked_to_contract, true);
+    assert.equal(renewal.period.start, addDaysIso(endDate, 1));
+    assert.match(renewal.lines[0].description, /Periode: \d{2}\/\d{2}\/\d{4} t\/m \d{2}\/\d{2}\/\d{4}/);
+
+    const renewed = await callJsonTool<Record<string, any>>(registerListContractsByExpiry, "list_contracts_by_expiry", {
+      thirdparty_id: clientId,
+    });
+    assert.equal(renewed.contracts[0].renewal_invoiced, true, JSON.stringify(renewed));
+    const withoutRenewal = await callJsonTool<Record<string, any>>(registerListContractsByExpiry, "list_contracts_by_expiry", {
+      thirdparty_id: clientId,
+      only_without_renewal: true,
+    });
+    assert.equal(withoutRenewal.count, 0);
+
+    const duplicate = await callJsonTool<Record<string, any>>(registerCreateRenewalInvoice, "create_renewal_invoice", {
+      contract: contractRef,
+    });
+    assert.equal(duplicate.error, "RENEWAL_ALREADY_INVOICED");
+
+    const renewedDetail = await callJsonTool<Record<string, any>>(registerGetContractDetail, "get_contract_detail", {
+      contract: contractRef,
+    });
+    assert.equal(renewedDetail.invoices.length, 1);
+    assert.equal(renewedDetail.invoices[0].id, renewalInvoiceId);
+    assert.equal(renewedDetail.invoices[0].is_renewal, true);
+    assert.equal(renewedDetail.interventions.length, 1);
+
+    const found = await callJsonTool<Record<string, any>>(registerSearchAcross, "search_across", { query: contractRef });
+    assert.ok(found.contracts.some((entry: { ref: string }) => entry.ref === contractRef), JSON.stringify(found));
+
+    const closed = await callJsonTool<Record<string, any>>(registerSetContractStatus, "set_contract_status", {
+      contract: contractRef,
+      status: "closed",
+    });
+    assert.equal(closed.success, true, JSON.stringify(closed));
+    assert.equal(closed.open_lines, 0);
+
+    const again = await callJsonTool<Record<string, any>>(registerSetContractStatus, "set_contract_status", {
+      contract: contractRef,
+      status: "closed",
+    });
+    assert.equal(again.note, "Already closed.");
+
+    const afterClose = await callJsonTool<Record<string, any>>(registerListContractsByExpiry, "list_contracts_by_expiry", {
+      thirdparty_id: clientId,
+    });
+    assert.equal(afterClose.count, 0, "a closed contract has nothing left to expire");
+  } catch (err) {
+    testError = err;
+  } finally {
+    // The MCP tools never delete, so clean up with the raw API. Validated contracts
+    // and closed interventions may be refused by Dolibarr; the test thirdparty then
+    // stays behind, named "MCP Integration ...", for manual removal.
+    const leftovers: string[] = [];
+    const attempt = async (label: string, remove: () => Promise<unknown>) => {
+      try {
+        await remove();
+      } catch {
+        leftovers.push(label);
+      }
+    };
+    if (renewalInvoiceId !== undefined) await attempt(`invoice ${renewalInvoiceId}`, () => dolibarr.delete(`/invoices/${renewalInvoiceId}`));
+    if (interventionId !== undefined) await attempt(`intervention ${interventionId}`, () => dolibarr.delete(`/interventions/${interventionId}`));
+    if (contractId !== undefined) await attempt(`contract ${contractId}`, () => dolibarr.delete(`/contracts/${contractId}`));
+    await attempt(`thirdparty ${clientId}`, () => deleteThirdparty(clientId));
+    if (leftovers.length > 0) {
+      console.warn(`[integration] Could not delete: ${leftovers.join(", ")}. Remove them manually.`);
     }
   }
 

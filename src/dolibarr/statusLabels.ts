@@ -21,6 +21,26 @@ const orderStatusLabels: Record<number, string> = {
   3: "delivered",
 };
 
+const contractStatusLabels: Record<number, string> = {
+  0: "draft",
+  1: "validated",
+  2: "closed",
+};
+
+// Contract line status: 4 = service running, 5 = service closed.
+const contractLineStatusLabels: Record<number, string> = {
+  0: "not_started",
+  4: "running",
+  5: "closed",
+};
+
+const interventionStatusLabels: Record<number, string> = {
+  0: "draft",
+  1: "validated",
+  2: "billed",
+  3: "done",
+};
+
 function numberOrUndefined(value: unknown): number | undefined {
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
@@ -42,4 +62,16 @@ export function proposalStatusLabel(value: unknown): string | undefined {
 
 export function orderStatusLabel(value: unknown): string | undefined {
   return statusLabel(orderStatusLabels, value);
+}
+
+export function contractStatusLabel(value: unknown): string | undefined {
+  return statusLabel(contractStatusLabels, value);
+}
+
+export function contractLineStatusLabel(value: unknown): string | undefined {
+  return statusLabel(contractLineStatusLabels, value);
+}
+
+export function interventionStatusLabel(value: unknown): string | undefined {
+  return statusLabel(interventionStatusLabels, value);
 }

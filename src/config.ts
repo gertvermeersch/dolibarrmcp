@@ -42,6 +42,9 @@ export const config = {
   dolibarrDebug: optionalBoolean("DOLIBARR_DEBUG"),
   dolibarrRequestTimeoutMs: optionalPositiveInteger("DOLIBARR_REQUEST_TIMEOUT_MS", 30_000),
   dolibarrDefaultWarehouseId: optionalPositiveIntegerValue("DOLIBARR_DEFAULT_WAREHOUSE_ID"),
+  // Dolibarr user recorded as signing/follow-up representative on new contracts.
+  // Without it, create_contract uses the API user.
+  dolibarrDefaultCommercialId: optionalPositiveIntegerValue("DOLIBARR_DEFAULT_COMMERCIAL_ID"),
   mcpAllowDeletes: optionalBoolean("MCP_ALLOW_DELETES"),
 
   // Bind to all interfaces by default for Docker/container use; override these

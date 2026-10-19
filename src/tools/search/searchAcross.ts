@@ -1,17 +1,19 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { listContracts } from "../../dolibarr/contracts.js";
+import { listInterventions } from "../../dolibarr/interventions.js";
 import { listInvoices } from "../../dolibarr/invoices.js";
 import { listOrders } from "../../dolibarr/orders.js";
 import { listProposals } from "../../dolibarr/proposals.js";
 import { listSupplierInvoices } from "../../dolibarr/supplierInvoices.js";
-import {
-  getThirdparty,
-  searchThirdparties,
-} from "../../dolibarr/thirdparties.js";
-import { DolibarrApiError } from "../../dolibarr/errors.js";
+import { searchThirdparties } from "../../dolibarr/thirdparties.js";
 import { dolibarrLikeLiteral, dolibarrQueryString } from "../../dolibarr/sqlFilters.js";
 import { invoiceStatusLabel, orderStatusLabel, proposalStatusLabel } from "../../dolibarr/statusLabels.js";
-import { dolibarrId, numberOrUndefined } from "../shared/normalization.js";
+import {
+  serializeContractSearchSummary,
+  serializeInterventionSearchSummary,
+} from "../shared/maintenanceSerializers.js";
+import { numberOrUndefined } from "../shared/normalization.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
 import {
   serializeClientDocumentSummary,
@@ -19,38 +21,10 @@ import {
   serializeProposalSearchSummary,
   serializeSupplierInvoiceSearchSummary,
   serializeThirdpartySummary,
-  thirdpartyNameMap,
 } from "../shared/serializers.js";
-import type { DolibarrThirdparty } from "../../types/dolibarr.js";
+import { optionalSearch, resolveMissingThirdpartyNames } from "../shared/thirdpartyNames.js";
 
 const resultLimit = "10";
-
-async function optionalSearch<T>(search: () => Promise<T[]>): Promise<T[]> {
-  try {
-    return await search();
-  } catch (err) {
-    if (err instanceof DolibarrApiError && (err.status === 403 || err.status === 404)) return [];
-    throw err;
-  }
-}
-
-async function resolveMissingThirdpartyNames(
-  ids: number[],
-  knownThirdparties: DolibarrThirdparty[],
-): Promise<Map<number, string>> {
-  const names = thirdpartyNameMap(knownThirdparties);
-  const missingIds = [...new Set(ids)].filter((id) => !names.has(id));
-
-  const missingThirdparties = await Promise.all(
-    missingIds.map((id) => optionalSearch(() => getThirdparty(id).then((thirdparty) => [thirdparty]))),
-  );
-
-  for (const thirdparty of missingThirdparties.flat()) {
-    names.set(dolibarrId(thirdparty.id), thirdparty.name);
-  }
-
-  return names;
-}
 
 function documentSearchParams(query: string, thirdpartyIds: number[]): string {
   const search = dolibarrLikeLiteral(query);
@@ -70,7 +44,7 @@ export function registerSearchAcross(server: McpServer): void {
     server,
     "search_across",
     {
-      description: "Fuzzy search across thirdparties, client invoices, supplier invoices, orders, and proposals simultaneously.",
+      description: "Fuzzy search across thirdparties, client invoices, supplier invoices, orders, proposals, contracts, and interventions simultaneously.",
       pretty: true,
       inputSchema: { query: z.string().describe("Search term") },
     },
@@ -81,16 +55,20 @@ export function registerSearchAcross(server: McpServer): void {
         .filter(Number.isFinite))];
       const searchParams = documentSearchParams(query, thirdpartyIds);
 
-      const [invoices, supplierInvoices, orders, proposals] = await Promise.all([
+      const [invoices, supplierInvoices, orders, proposals, contracts, interventions] = await Promise.all([
         optionalSearch(() => listInvoices(searchParams)),
         optionalSearch(() => listSupplierInvoices(searchParams)),
         optionalSearch(() => listOrders(searchParams, { suppressErrorStatuses: [403, 404] })),
         optionalSearch(() => listProposals(searchParams)),
+        optionalSearch(() => listContracts(searchParams)),
+        optionalSearch(() => listInterventions(searchParams)),
       ]);
       const clientIds = [
         ...invoices,
         ...orders,
         ...proposals,
+        ...contracts,
+        ...interventions,
       ]
         .map((document) => numberOrUndefined(document.socid))
         .filter((id): id is number => id !== undefined);
@@ -124,6 +102,8 @@ export function registerSearchAcross(server: McpServer): void {
           proposalStatusLabel(proposal.statut) ?? "unknown",
           clientNames,
         )),
+        contracts: contracts.map((contract) => serializeContractSearchSummary(contract, clientNames)),
+        interventions: interventions.map((intervention) => serializeInterventionSearchSummary(intervention, clientNames)),
       };
     },
   );

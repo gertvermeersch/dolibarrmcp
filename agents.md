@@ -30,16 +30,22 @@ src/
 ├── dolibarr/
 │   ├── client.ts     Fetch wrapper — sets DOLAPIKEY header, normalises errors
 │   ├── documents/    Domain services for shared document workflows
+│   ├── maintenance/  Contract and intervention rules and services (see below)
 │   ├── thirdparties.ts
 │   ├── invoices.ts
 │   ├── supplierInvoices.ts
 │   ├── proposals.ts
+│   ├── contracts.ts
+│   ├── interventions.ts
+│   ├── users.ts
 │   └── products.ts
 ├── resolvers/
 │   ├── thirdparty.ts Fuzzy name → ID resolution with structured errors
 │   └── product.ts    Catalog match → line item, with free-text fallback
 └── tools/
     ├── catalog/      Product and service catalog tools
+    ├── contracts/    Maintenance contract tools
+    ├── interventions/ Intervention tools
     ├── invoices/     Client/supplier invoice and receivables tools
     ├── payments/     Payment-mode and bank-account discovery tools
     ├── proposals/    Proposal/quote tools
@@ -103,6 +109,33 @@ Add new codes there if needed; never use ad-hoc string literals.
 - Supplier invoices use a separate endpoint family: `/supplierinvoices`, not `/invoices`
 - Proposal status flow: draft → validate → close (accepted or refused); `setProposalStatus` posts numeric close statuses (`2` accepted, `3` refused)
 
+### Maintenance contracts and interventions
+
+`src/dolibarr/maintenance/` holds the domain layer for the maintenance tools:
+
+- `contractRules.ts` — pure derivations (end date, status, yearly value, renewal detection, next
+  period, intervention date/duration). Takes "today" as a parameter; no I/O.
+- `contractReadService.ts` — list/detail/overview flows (per-contract fan-out for linked invoices).
+- `contractCreationService.ts`, `renewalInvoiceService.ts`, `interventionCreationService.ts`,
+  `contractStatusService.ts` — write flows with injectable dependencies for unit tests. When a
+  step after the first write fails they return an error with the ID of the record already
+  created and never roll back by deleting.
+
+API facts verified against the demo (Dolibarr 24):
+
+- A contract has no end date; it is the latest line `date_end`. `GET /contracts` (list) has no
+  `linkedObjectsIds`; `GET /contracts/{id}` does (invoices under `facture`).
+- `POST /contracts` requires `commercial_signature_id` and `commercial_suivi_id`.
+- Lines: `POST /contracts/{id}/lines`, then `POST /contracts/{id}/validate` (send a body) and
+  `PUT /contracts/{id}/lines/{lineid}/activate`. The `unactivate` route and `POST /close` both
+  close lines (status 5). `closeAll` validates a draft contract as a side effect.
+- An invoice links to a contract only with `"linked_objects": {"contrat": <id>}` in
+  `POST /invoices`; `origin`/`origin_type` are ignored.
+- `POST /interventions` requires `fk_project` (0 works); `fk_contrat` links the contract. Lines
+  go through `POST /interventions/{id}/lines`, then `/validate` and `/close` (status 3 = done).
+- `GET /thirdparties` returns 404 for no results (empty list). A non-admin API user gets 403 on
+  `/setup/company` and `/setup/modules`; that is not a tool error.
+
 ## Local Dolibarr source reference
 
 A local Dolibarr source tree is available at `vendor/dolibarr/`. Treat it as read-only
@@ -129,6 +162,7 @@ MCP_API_KEY        Secret used to authenticate incoming MCP requests (X-API-Key 
 DOLIBARR_URL       Full base URL to Dolibarr REST API
 DOLIBARR_API_KEY   Dolibarr personal API token
 DOLIBARR_DEBUG     Optional: true/1/yes/on logs Dolibarr requests and responses
+DOLIBARR_DEFAULT_COMMERCIAL_ID  Optional: Dolibarr user ID set as representative on new contracts (default: API user)
 MCP_HTTP_HOST      Default: 0.0.0.0
 MCP_HTTP_PORT      Default: 3000
 ```
@@ -190,6 +224,8 @@ through `mergeLineUpdate`.
 - `validate_proposal` (write)
 - `set_proposal_status` (write)
 - `mark_invoice_paid` (write; client and supplier invoices, with optional payment creation)
+- `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview`, `list_interventions` (read; maintenance)
+- `create_contract`, `create_renewal_invoice`, `create_intervention`, `set_contract_status` (write; maintenance, nothing is deleted)
 - `list_payment_modes` and `list_bank_accounts` (read; payment option discovery)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver

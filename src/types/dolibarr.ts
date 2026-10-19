@@ -61,6 +61,8 @@ export interface DolibarrInvoiceLine {
   tva_tx: number;   // VAT rate
   total_ht: number;
   total_ttc: number;
+  date_start?: number; // Unix timestamp; service period start
+  date_end?: number;   // Unix timestamp; service period end
 }
 
 export interface DolibarrInvoicePayment {
@@ -137,4 +139,68 @@ export interface DolibarrProduct {
   status_buy?: number; // 1 = on purchase
   note_public?: string;
   note_private?: string;
+}
+
+// Contract line (llx_contratdet). Status: 0 = not started, 4 = running, 5 = closed.
+// `date_start`/`date_end` are the planned period; the `*_real` fields are the
+// actual activation/closing dates.
+export interface DolibarrContractLine {
+  id: number;
+  fk_contrat?: number;
+  fk_product?: number;
+  product_ref?: string;
+  product_label?: string;
+  product_type?: number;
+  desc?: string;
+  description?: string;
+  qty: number;
+  subprice: number;
+  remise_percent?: number;
+  tva_tx: number;
+  total_ht: number;
+  total_ttc?: number;
+  statut?: number | string;
+  status?: number | string;
+  date_start?: number;
+  date_end?: number;
+  date_start_real?: number;
+  date_end_real?: number;
+}
+
+// Linked object IDs by Dolibarr element type, for example `{ facture: { "0": 12 } }`.
+// Only present on `GET /contracts/{id}`, never on the list endpoint.
+export type DolibarrLinkedObjectIds = Record<string, Record<string, number | string> | Array<number | string>>;
+
+// A contract has no end date of its own: derive it from the lines.
+export interface DolibarrContract {
+  id: number;
+  ref: string;
+  socid: number;
+  ref_customer?: string;
+  date_contrat?: number; // Unix timestamp
+  statut?: number | string; // 0 = draft, 1 = validated, 2 = closed
+  status?: number | string;
+  lines?: DolibarrContractLine[];
+  linkedObjectsIds?: DolibarrLinkedObjectIds;
+}
+
+export interface DolibarrInterventionLine {
+  id: number;
+  desc?: string;
+  date?: number;
+  duration?: number | string; // seconds
+}
+
+export interface DolibarrIntervention {
+  id: number;
+  ref: string;
+  socid: number;
+  fk_contrat?: number | string;
+  description?: string;
+  statut?: number | string; // 0 = draft, 1 = validated, 2 = billed, 3 = done
+  status?: number | string;
+  duration?: number | string; // total seconds
+  datec?: number;
+  dateo?: number;
+  lines?: DolibarrInterventionLine[];
 }

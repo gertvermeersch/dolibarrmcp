@@ -27,6 +27,7 @@ It connects to Dolibarr through the REST API and serves MCP over HTTP.
    | `DOLIBARR_TIMEZONE` | Optional. Business timezone for Dolibarr date-only fields. Defaults to `Europe/Brussels`. |
    | `DOLIBARR_DEBUG` | Optional. Set to `true` to log Dolibarr requests and responses to the console. |
    | `DOLIBARR_DEFAULT_WAREHOUSE_ID` | Optional. Default warehouse used when reopening validated customer invoices that may reverse stock movements. |
+   | `DOLIBARR_DEFAULT_COMMERCIAL_ID` | Optional. Dolibarr user ID recorded as signing and follow-up representative on contracts created by `create_contract`. Defaults to the API user. |
    | `MCP_ALLOW_DELETES` | Optional. Set to `true` to enable guarded delete tools. Defaults to disabled. |
    | `MCP_HTTP_HOST` | Defaults to `0.0.0.0`. |
    | `MCP_HTTP_PORT` | Defaults to `3000`. |
@@ -117,6 +118,10 @@ Read tools:
 - `search_thirdparties`
 - `list_payment_modes`
 - `list_bank_accounts`
+- `list_contracts_by_expiry`
+- `get_contract_detail`
+- `list_interventions`
+- `get_maintenance_overview`
 
 Write tools:
 
@@ -134,6 +139,10 @@ Write tools:
 - `set_proposal_status`
 - `update_product`
 - `update_service`
+- `create_contract`
+- `create_renewal_invoice`
+- `create_intervention`
+- `set_contract_status`
 
 See `todo.md` for the current implementation and verification checklist.
 
@@ -146,6 +155,8 @@ See `todo.md` for the current implementation and verification checklist.
 | Supplier invoices | `create_supplier_invoice` | `get_supplier_invoice_detail` | `update_supplier_invoice` (draft only) | `set_supplier_invoice_status`, `mark_invoice_paid` | guarded `delete_supplier_invoice` |
 | Proposals | `create_proposal` | `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
 | Products / services | — | `search_products`, `search_services` | `update_product`, `update_service` | — | — |
+| Contracts | `create_contract` | `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview` | — | `set_contract_status` | — |
+| Interventions | `create_intervention` | `list_interventions` | — | — | — |
 
 Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
 
@@ -187,6 +198,56 @@ Dolibarr applies price and VAT changes through this API only in "one price per p
 customer-price mode. In per-segment or per-quantity pricing it drops them silently, so the
 tools re-read the item and return a `warnings` entry when the price or VAT rate did not change.
 The API user needs create/modify rights on products/services.
+
+### Maintenance contracts
+
+The maintenance tools answer which contracts expire or have expired, whether a renewal invoice
+exists, and which visits were carried out. They use only the REST API and delete nothing; the
+write tools are plain create/status tools, so the MCP client's tool approval is the confirmation
+step, as for the other `create_*` tools. All of them work on the Dolibarr instance configured in
+`DOLIBARR_URL`.
+
+Rules the tools derive (Dolibarr keeps none of them on the contract itself):
+
+- **End date**: a contract has no end date of its own. It is the latest `date_end` over its
+  lines. A line with status 4 (running) and an end date before today is expired.
+- **Status** (`expired` | `expiring` | `running`): `expired` when the end date is before today,
+  `expiring` within `days_ahead` days, `running` otherwise. `list_contracts_by_expiry` only
+  lists contracts with at least one running line and an end date; drafts, fully closed
+  contracts and contracts without any line end date have nothing to expire.
+- **`renewal_invoiced`**: true when a linked invoice is dated more than 30 days after the
+  contract start (`date_contrat`, else the earliest line start). Abandoned invoices do not
+  count. Dolibarr's list endpoint carries no linked objects, so each listed contract is
+  re-read through `GET /contracts/{id}`.
+- **Yearly value excl. VAT**: the line totals of all lines that are not closed, scaled to 12
+  months when a line covers another period.
+
+`create_contract` creates the contract, adds the service lines, validates it and activates every
+line, for `duration_months` from `start_date` (12 months from 2026-01-01 ends 2026-12-31).
+Dolibarr requires a signing and follow-up representative, so it uses
+`DOLIBARR_DEFAULT_COMMERCIAL_ID` or else the API user (`/users/info`); when neither is
+available it returns a `VALIDATION_ERROR` that names the variable.
+
+`create_renewal_invoice` bills the period after the contract's current end date, as long as the
+contract term (or `period_months`), with the period in each line description and as the line's
+service dates. The invoice is linked through `linked_objects: {"contrat": id}`, the only way
+Dolibarr accepts; the tool re-reads the contract to confirm the link. It refuses with
+`RENEWAL_ALREADY_INVOICED` when a renewal invoice is already linked, unless `allow_duplicate`
+is set. It does not change the contract's own line dates, so the contract keeps showing as
+expired or expiring until its lines are extended in Dolibarr.
+
+`create_intervention` creates an intervention on the contract's client (`fk_project` 0,
+`fk_contrat` set), adds one line with the date and duration, validates it and, unless
+`close: false`, marks it done (status 3). `get_maintenance_overview` reports the latest done
+intervention per contract and flags contracts with running services and no done intervention in
+the last 12 months.
+
+`set_contract_status` closes a contract (`closed`) or deactivates lines (`lines_deactivated`).
+In Dolibarr both end up as closed service lines (status 5); nothing is deleted. Closing a draft
+contract is refused, because Dolibarr would validate it as a side effect.
+
+If a later step of a create tool fails, the record created so far is kept and the error carries
+its ID (`contract_id`, `invoice_id`, `intervention_id`) plus the failed step.
 
 ### Marking invoices paid
 

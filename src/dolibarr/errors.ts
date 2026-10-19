@@ -26,7 +26,7 @@ function getDolibarrErrorMessage(body: unknown): string | undefined {
 }
 
 function notFoundMessageForPath(path: string): string | undefined {
-  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties|products)\/(\d+)(?:\/|$|\?)/.exec(path);
+  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties|products|contracts|interventions)\/(\d+)(?:\/|$|\?)/.exec(path);
   if (!match) return undefined;
 
   const [, resource, id] = match;
@@ -36,6 +36,8 @@ function notFoundMessageForPath(path: string): string | undefined {
     proposals: "Proposal",
     thirdparties: "Thirdparty",
     products: "Product/service",
+    contracts: "Contract",
+    interventions: "Intervention",
   };
 
   return `${entity[resource]} ${id} not found.`;
@@ -83,6 +85,18 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
     return {
       name: "Commercial proposals",
       action: "Enable the Dolibarr Commercial proposals module and grant the API user proposal permissions required by this tool.",
+    };
+  }
+  if (path.startsWith("/contracts")) {
+    return {
+      name: "Contracts",
+      action: "Enable the Dolibarr Contracts/Subscriptions module and grant the API user contract permissions required by this tool.",
+    };
+  }
+  if (path.startsWith("/interventions")) {
+    return {
+      name: "Interventions",
+      action: "Enable the Dolibarr Interventions module and grant the API user intervention permissions required by this tool.",
     };
   }
   if (path.startsWith("/orders")) {
