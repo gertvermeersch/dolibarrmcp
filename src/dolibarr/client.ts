@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { log, logError } from "../log.js";
 import { DolibarrApiError } from "./errors.js";
 
 const debugBodyLimit = 4000;
@@ -29,7 +30,7 @@ function debugPayloadFromText(text: string): unknown {
 function logDolibarrRequest(method: string, path: string, url: string, bodyText?: string): void {
   if (!config.dolibarrDebug) return;
 
-  console.log("[dolibarr] ->", `${method} ${path}`, {
+  log("[dolibarr] ->", `${method} ${path}`, {
     url,
     body: bodyText === undefined ? undefined : debugPayloadFromText(bodyText),
   });
@@ -49,8 +50,8 @@ function logDolibarrResponse(
 
   if (!config.dolibarrDebug && status < 400) return;
 
-  const log = status >= 400 && !suppressErrorLog ? console.error : console.log;
-  log("[dolibarr] <-", `${method} ${path}`, {
+  const write = status >= 400 && !suppressErrorLog ? logError : log;
+  write("[dolibarr] <-", `${method} ${path}`, {
     status,
     statusText,
     durationMs: Math.round(durationMs),
@@ -64,7 +65,7 @@ function logDolibarrFetchError(
   durationMs: number,
   err: unknown,
 ): void {
-  console.error("[dolibarr] !!", `${method} ${path}`, {
+  logError("[dolibarr] !!", `${method} ${path}`, {
     durationMs: Math.round(durationMs),
     error: err instanceof Error ? err.message : err,
   });

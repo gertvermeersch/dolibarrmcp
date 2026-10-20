@@ -3,6 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
 import { config } from "./config.js";
+import { Caller, log, logError, runWithCaller } from "./log.js";
 import { registerTools } from "./server.js";
 
 // CORS preflight requests may ask for custom MCP headers. Fall back to the known
@@ -33,6 +34,32 @@ const corsHeaders = {
 // the request/response lifecycle for its session until the client disconnects.
 const transports = new Map<string, StreamableHTTPServerTransport>();
 
+// MCP clientInfo (name/version) announced at initialize, keyed by session id, so
+// later requests in the same session can still be attributed to a client.
+const sessionClients = new Map<string, string>();
+
+function clientInfoFromInitialize(body: unknown): string | undefined {
+  for (const message of jsonRpcMessages(body)) {
+    if (message.method !== "initialize") continue;
+    const params = message.params as { clientInfo?: { name?: unknown; version?: unknown } } | undefined;
+    const info = params?.clientInfo;
+    if (typeof info?.name !== "string") continue;
+    return typeof info.version === "string" ? `${info.name}/${info.version}` : info.name;
+  }
+  return undefined;
+}
+
+function callerFromRequest(req: IncomingMessage, client?: string): Caller {
+  const forwarded = req.headers["x-forwarded-for"];
+  const forwardedIp = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0].trim();
+
+  return {
+    userAgent: req.headers["user-agent"],
+    client,
+    ip: forwardedIp || req.socket.remoteAddress,
+  };
+}
+
 function jsonRpcMessages(body: unknown): Array<Record<string, unknown>> {
   if (Array.isArray(body)) {
     return body.filter((message): message is Record<string, unknown> => (
@@ -58,7 +85,7 @@ function logMcpRequest(req: IncomingMessage, body: unknown, sessionId?: string):
     });
 
   if (toolCalls.length > 0) {
-    console.log("[mcp] tool_call", {
+    log("[mcp] tool_call", {
       tools: toolCalls,
       sessionId,
     });
@@ -70,7 +97,7 @@ function logMcpRequest(req: IncomingMessage, body: unknown, sessionId?: string):
     .filter((method): method is string => typeof method === "string");
 
   if (methods.length > 0) {
-    console.log("[mcp] request", {
+    log("[mcp] request", {
       method: req.method,
       methods,
       sessionId,
@@ -98,11 +125,12 @@ function createMcpServer(): McpServer {
   return server;
 }
 
-async function createTransport(): Promise<StreamableHTTPServerTransport> {
+async function createTransport(client?: string): Promise<StreamableHTTPServerTransport> {
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => crypto.randomUUID(),
     onsessioninitialized: (newSessionId) => {
       transports.set(newSessionId, transport);
+      if (client) sessionClients.set(newSessionId, client);
     },
   });
 
@@ -110,6 +138,7 @@ async function createTransport(): Promise<StreamableHTTPServerTransport> {
   transport.onclose = () => {
     if (transport.sessionId) {
       transports.delete(transport.sessionId);
+      sessionClients.delete(transport.sessionId);
     }
   };
 
@@ -170,52 +199,61 @@ const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  try {
-    const sessionId = req.headers["mcp-session-id"];
-    const sessionIdValue = Array.isArray(sessionId) ? sessionId[0] : sessionId;
-    let transport = sessionIdValue ? transports.get(sessionIdValue) : undefined;
-    let body: unknown;
+  // Mutable so the client name can be filled in once an initialize body is parsed.
+  const caller = callerFromRequest(req);
 
-    if (req.method === "POST") {
-      body = await readJsonBody(req);
-      logMcpRequest(req, body, sessionIdValue);
-    }
+  await runWithCaller(caller, async () => {
+    try {
+      const sessionId = req.headers["mcp-session-id"];
+      const sessionIdValue = Array.isArray(sessionId) ? sessionId[0] : sessionId;
+      let transport = sessionIdValue ? transports.get(sessionIdValue) : undefined;
+      let body: unknown;
+      caller.client = sessionIdValue ? sessionClients.get(sessionIdValue) : undefined;
 
-    const isInitializationRequest = req.method === "POST" && isInitializeRequest(body);
-
-    // An initialize request starts a fresh MCP lifecycle. Some browser clients,
-    // including the MCP inspector, may keep sending the previous mcp-session-id
-    // when reconnecting after a dev-server reload. Reusing that transport would
-    // make the SDK reject the request as "Server already initialized", so replace
-    // the old session and let the initialize response publish the new session id.
-    if (isInitializationRequest) {
-      if (transport) {
-        if (sessionIdValue) {
-          transports.delete(sessionIdValue);
-        }
-        await transport.close();
+      if (req.method === "POST") {
+        body = await readJsonBody(req);
+        const initClient = clientInfoFromInitialize(body);
+        if (initClient) caller.client = initClient;
+        logMcpRequest(req, body, sessionIdValue);
       }
 
-      transport = await createTransport();
-    }
+      const isInitializationRequest = req.method === "POST" && isInitializeRequest(body);
 
-    // Later requests must carry the mcp-session-id returned by initialization.
-    if (!transport) {
-      writeJsonRpcError(res, 400, -32000, "Bad Request: Server not initialized");
-      return;
-    }
+      // An initialize request starts a fresh MCP lifecycle. Some browser clients,
+      // including the MCP inspector, may keep sending the previous mcp-session-id
+      // when reconnecting after a dev-server reload. Reusing that transport would
+      // make the SDK reject the request as "Server already initialized", so replace
+      // the old session and let the initialize response publish the new session id.
+      if (isInitializationRequest) {
+        if (transport) {
+          if (sessionIdValue) {
+            transports.delete(sessionIdValue);
+            sessionClients.delete(sessionIdValue);
+          }
+          await transport.close();
+        }
 
-    await transport.handleRequest(req, res, body);
-  } catch (err) {
-    console.error("Error handling MCP request:", err);
-    if (!res.headersSent) {
-      writeJsonRpcError(res, 500, -32603, "Internal server error");
+        transport = await createTransport(caller.client);
+      }
+
+      // Later requests must carry the mcp-session-id returned by initialization.
+      if (!transport) {
+        writeJsonRpcError(res, 400, -32000, "Bad Request: Server not initialized");
+        return;
+      }
+
+      await transport.handleRequest(req, res, body);
+    } catch (err) {
+      logError("Error handling MCP request:", err);
+      if (!res.headersSent) {
+        writeJsonRpcError(res, 500, -32603, "Internal server error");
+      }
     }
-  }
+  });
 });
 
 httpServer.listen(config.httpPort, config.httpHost, () => {
-  console.log("dolibarr-mcp started", {
+  log("dolibarr-mcp started", {
     listen: `${config.httpHost}:${config.httpPort}`,
     dolibarrUrl: config.dolibarrUrl,
     dolibarrRequestTimeoutMs: config.dolibarrRequestTimeoutMs,
