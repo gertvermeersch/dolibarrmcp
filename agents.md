@@ -202,6 +202,7 @@ through `mergeLineUpdate`.
 ## What is and isn't implemented
 
 ### Fully implemented
+- `list_invoices`, `list_proposals`, `list_orders`, `list_contracts`, `list_payments`, `list_products` (read; filtered browsing and pagination)
 - `get_client_overview` (read)
 - `get_invoice_detail` (read)
 - `get_monthly_revenue` (read)

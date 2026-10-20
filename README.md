@@ -116,6 +116,12 @@ Read tools:
 - `search_products`
 - `search_services`
 - `search_thirdparties`
+- `list_invoices`
+- `list_proposals`
+- `list_orders`
+- `list_contracts`
+- `list_payments`
+- `list_products`
 - `list_payment_modes`
 - `list_bank_accounts`
 - `list_contracts_by_expiry`
@@ -151,14 +157,62 @@ See `todo.md` for the current implementation and verification checklist.
 | Entity | Create | Read | Update | Lifecycle / status | Delete |
 | --- | --- | --- | --- | --- | --- |
 | Thirdparties | `create_thirdparty` | `search_thirdparties`, `get_client_overview` | `update_thirdparty` | — | guarded `delete_thirdparty` |
-| Client invoices | `create_invoice` | `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
+| Client invoices | `create_invoice` | `list_invoices`, `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
 | Supplier invoices | `create_supplier_invoice` | `get_supplier_invoice_detail` | `update_supplier_invoice` (draft only) | `set_supplier_invoice_status`, `mark_invoice_paid` | guarded `delete_supplier_invoice` |
-| Proposals | `create_proposal` | `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
-| Products / services | — | `search_products`, `search_services` | `update_product`, `update_service` | — | — |
-| Contracts | `create_contract` | `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview` | — | `set_contract_status` | — |
+| Proposals | `create_proposal` | `list_proposals`, `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
+| Products / services | — | `list_products`, `search_products`, `search_services` | `update_product`, `update_service` | — | — |
+| Contracts | `create_contract` | `list_contracts`, `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview` | — | `set_contract_status` | — |
 | Interventions | `create_intervention` | `list_interventions` | — | — | — |
 
 Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
+
+### Browsing records and payments
+
+All six list tools accept `limit` (1–100, default 50) and `offset` (default 0).
+Responses include the named collection, `count`, `has_more`, and `next_offset`.
+Lists use descending record ID order. Pagination reflects current data; concurrent
+insertions or deletions can shift offsets between calls.
+
+| Tool | Optional filters |
+| --- | --- |
+| `list_invoices` | `thirdparty_id`, `status` (draft/validated/paid/cancelled), `date_from`, `date_to` |
+| `list_proposals` | `thirdparty_id`, `status` (draft/validated/sent/accepted/refused/billed/closed), `date_from`, `date_to` |
+| `list_orders` | `thirdparty_id`, `status` (draft/validated/shipment_in_process/delivered/cancelled), `date_from`, `date_to` |
+| `list_contracts` | `thirdparty_id`; includes contracts without an expiry date and current service summaries |
+| `list_payments` | `thirdparty_id`, `date_from`, `date_to`, `max_invoices`, `invoice_offset` |
+| `list_products` | `ref`, `label` (contained text, combined with AND), `type` (product/service); defaults to both types |
+
+Dates must be valid `YYYY-MM-DD` values and both endpoints are inclusive. Document
+lists filter the document date; payments filter the payment date. Proposal `sent`
+is an alias for validated because Dolibarr has no separate sent status. `closed`
+includes accepted, refused and billed. Invoice `cancelled` corresponds to Dolibarr's
+abandoned status; summaries use the existing `abandoned` label.
+
+`list_payments` returns customer invoice payment **allocations**: one shared payment
+can appear for multiple invoices, with each row's allocated amount. Supplier payments,
+credit notes, discounts and deposit applications are excluded. The bundled Dolibarr
+API exposes payments per invoice, so the tool scans invoices of all dates (up to
+`max_invoices`, default 1000, maximum 10000) with bounded concurrency, then sorts
+allocations by payment date descending within that scan. A recent payment on an old
+invoice can therefore be found. `scan.complete` is true only when the scan includes
+all invoices from offset zero. If `scan.more_invoices_available` is true, resume at
+`scan.next_invoice_offset`. First paginate allocations in the current scan using
+`next_offset`; reset `offset` to zero when advancing `invoice_offset`. An empty payment
+page with an incomplete invoice scan does not establish that no payments exist.
+
+`search_document_content` accepts `thirdparty_id` and `thirdparty_name`. A name is
+resolved before listing documents; ambiguous names return candidates and missing
+names return a structured error. Supplying both filters requires them to identify
+the same thirdparty. The customer filter applies **before** the recent-document
+scan limit for every document type. The scan remains bounded, with the existing
+per-type `more_documents_available` metadata indicating older documents may remain.
+
+Example calls:
+
+```json
+{"name":"list_invoices","arguments":{"thirdparty_id":7,"status":"paid","limit":25}}
+{"name":"search_document_content","arguments":{"query":"maintenance","thirdparty_name":"Example Company"}}
+```
 
 ### Updating documents
 

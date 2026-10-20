@@ -1,4 +1,10 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerListInvoices } from "./tools/invoices/listInvoices.js";
+import { registerListProposals } from "./tools/proposals/listProposals.js";
+import { registerListOrders } from "./tools/orders/listOrders.js";
+import { registerListContracts } from "./tools/contracts/listContracts.js";
+import { registerListPayments } from "./tools/payments/listPayments.js";
+import { registerListProducts } from "./tools/catalog/listProducts.js";
 
 import { registerSearchProducts } from "./tools/catalog/searchProducts.js";
 import { registerSearchServices } from "./tools/catalog/searchServices.js";
@@ -45,6 +51,12 @@ import { registerUpdateThirdparty } from "./tools/thirdparties/updateThirdparty.
 // Register every MCP tool on a server instance. index.ts creates one MCP server
 // per transport session, then calls this function to attach the shared tool set.
 export function registerTools(server: McpServer): void {
+  registerListInvoices(server);
+  registerListProposals(server);
+  registerListOrders(server);
+  registerListContracts(server);
+  registerListPayments(server);
+  registerListProducts(server);
   registerSearchProducts(server);
   registerSearchServices(server);
   registerUpdateProduct(server);
