@@ -49,14 +49,35 @@ function clientInfoFromInitialize(body: unknown): string | undefined {
   return undefined;
 }
 
+function headerValue(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+// Behind a reverse proxy the socket peer is the proxy, so prefer the address it
+// forwards. Proxies differ in which header they set, hence the fallbacks. These
+// headers are client-controlled, which is fine for log attribution only.
+function forwardedClientIp(req: IncomingMessage): string | undefined {
+  const xff = headerValue(req, "x-forwarded-for")?.split(",")[0].trim();
+  if (xff) return xff;
+
+  const realIp = headerValue(req, "x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const forwardedFor = /for="?\[?([^;,"\]\s]+)/i.exec(headerValue(req, "forwarded") ?? "");
+  return forwardedFor?.[1];
+}
+
 function callerFromRequest(req: IncomingMessage, client?: string): Caller {
-  const forwarded = req.headers["x-forwarded-for"];
-  const forwardedIp = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(",")[0].trim();
+  const peer = req.socket.remoteAddress;
+  const forwardedIp = forwardedClientIp(req);
 
   return {
     userAgent: req.headers["user-agent"],
     client,
-    ip: forwardedIp || req.socket.remoteAddress,
+    ip: forwardedIp ?? peer,
+    // Only shown when a forwarded address replaced the socket peer.
+    via: forwardedIp && forwardedIp !== peer ? peer : undefined,
   };
 }
 

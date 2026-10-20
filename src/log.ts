@@ -7,6 +7,7 @@ export type Caller = {
   userAgent?: string;
   client?: string;
   ip?: string;
+  via?: string;
 };
 
 const callerStorage = new AsyncLocalStorage<Caller>();
@@ -20,7 +21,7 @@ function prefix(): string {
   const parts = [new Date().toISOString()];
 
   if (caller) {
-    const who = [caller.client, caller.userAgent && `ua=${caller.userAgent}`, caller.ip]
+    const who = [caller.client, caller.userAgent && `ua=${caller.userAgent}`, caller.ip, caller.via && `via=${caller.via}`]
       .filter(Boolean)
       .join(" ");
     if (who) parts.push(`[${who}]`);
