@@ -52,7 +52,7 @@ type ScanSummary = {
   more_documents_available: boolean;
 };
 
-const defaultMaxDocumentsPerType = 25;
+const defaultMaxDocumentsPerType = 50;
 const defaultResultLimit = 50;
 const defaultConcurrency = 5;
 
