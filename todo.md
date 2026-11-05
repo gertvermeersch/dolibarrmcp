@@ -264,3 +264,22 @@ Implemented from the maintenance requirements (tools: `list_contracts_by_expiry`
   - [x] The integration test's raw-API cleanup deletes the invoice, closed intervention, validated contract and thirdparty.
   - Note: the API user needs create rights on contracts and interventions; without them Dolibarr returns 403 and the interventions API makes `get_contract_detail` / `get_maintenance_overview` report `interventions_available: false`.
 - [ ] No tool extends a contract's line dates after a renewal, so a renewed contract keeps showing as expired/expiring (only `renewal_invoiced` changes). Decide whether a `renew_contract` tool is wanted.
+
+## Projects, leads, tasks and time
+
+Implemented 2026-11-05 and run end to end against the demo (Dolibarr 24.0.0) the same day.
+
+- [x] Read tools: `list_projects`, `get_project_detail`, `get_pipeline_overview`, `list_time_entries`.
+- [x] Write tools: `create_project`, `update_project`, `set_project_status`, `create_task`, `update_task`, `log_time`.
+- [x] Verify against the demo instance (each fact is listed in `agents.md` under "Projects, leads, tasks and time"):
+  - [x] `POST /projects` with `ref: "auto"` returns an ID and takes `opp_status`/`opp_percent`/`opp_amount`.
+  - [x] `POST /projects/{id}/contacts` with `fk_socpeople`, `type_contact: "PROJECTLEADER"`, `source: "internal"` adds the leader.
+  - [x] `PUT /projects/{id}` with `opp_status` moves the stage; with `status: 2` closes; `POST /validate` reopens a closed project.
+  - [x] Tasks with `duration_effective` and `planned_workload`: `GET /projects/{id}/tasks` returned nothing for the non-admin API user, so the tools list `GET /tasks?sqlfilters=(t.fk_projet:=:id)`.
+  - [x] `POST /tasks/{id}/addtimespent` with a GMT date stores the right local time (14:30 Brussels sent as 13:30 GMT, read back through the API).
+  - [ ] Check that entry once in the Dolibarr UI (time spent tab).
+  - [x] `GET /projects/alltimespent` accepts `sortfield=et.element_datehour` and `sqlfilters` on `p.rowid`, `p.fk_soc`, `t.rowid`, `et.fk_user`, `et.element_date`.
+  - [x] `(t.fk_projet:=:id)` filters proposals, orders, invoices and supplier invoices.
+- [ ] Integration tests for the project tools in `test/integration/dolibarr-api.test.ts`.
+- [ ] Optional `project` input on `create_proposal`, `create_invoice` and `create_intervention`, so quotes for a lead and invoices for a job are linked (`fk_project`).
+- [ ] Optional lead-stage override (env) if the `llx_c_lead_status` dictionary is ever customised.

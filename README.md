@@ -128,6 +128,10 @@ Read tools:
 - `get_contract_detail`
 - `list_interventions`
 - `get_maintenance_overview`
+- `list_projects`
+- `get_project_detail`
+- `get_pipeline_overview`
+- `list_time_entries`
 
 Write tools:
 
@@ -149,6 +153,12 @@ Write tools:
 - `create_renewal_invoice`
 - `create_intervention`
 - `set_contract_status`
+- `create_project`
+- `update_project`
+- `set_project_status`
+- `create_task`
+- `update_task`
+- `log_time`
 
 See `todo.md` for the current implementation and verification checklist.
 
@@ -163,6 +173,9 @@ See `todo.md` for the current implementation and verification checklist.
 | Products / services | — | `list_products`, `search_products`, `search_services` | `update_product`, `update_service` | — | — |
 | Contracts | `create_contract` | `list_contracts`, `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview` | — | `set_contract_status` | — |
 | Interventions | `create_intervention` | `list_interventions` | — | — | — |
+| Projects / leads | `create_project` | `list_projects`, `get_project_detail`, `get_pipeline_overview` | `update_project` | `set_project_status` | — |
+| Tasks | `create_task` | `get_project_detail` | `update_task` | — | — |
+| Time entries | `log_time` | `list_time_entries`, `get_project_detail` | — | — | — |
 
 Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
 
@@ -303,6 +316,52 @@ contract is refused, because Dolibarr would validate it as a side effect.
 If a later step of a create tool fails, the record created so far is kept and the error carries
 its ID (`contract_id`, `invoice_id`, `intervention_id`) plus the failed step.
 
+### Projects, leads, tasks and time
+
+Dolibarr has no separate lead object: a lead is a project with "follow an opportunity"
+(`usage_opportunity`) set, plus a stage, an amount and a probability. The project tools
+handle both kinds of project, and every project belongs to an existing thirdparty.
+
+- **Projects are addressed** by Dolibarr ID, exact ref (`PJ2511-0004`) or title. A title
+  matches on a substring; one exact title wins over partial matches, and several matches return
+  `PROJECT_AMBIGUOUS` with candidates.
+- **Lead stages** are the default Dolibarr dictionary (`llx_c_lead_status`), which the REST API
+  does not expose: `prospection` (0%), `qualification` (20%), `proposal` (40%),
+  `negotiation` (60%), `pending` (50%, inactive by default), `won` (100%), `lost` (0%).
+  Setting a stage without a probability uses the stage's percentage. Weighted amount =
+  amount × probability. If the dictionary has been changed in Dolibarr, the IDs in
+  `src/dolibarr/projects/projectRules.ts` must be changed to match.
+- **Pipeline**: `get_pipeline_overview` counts leads that are not closed and not won or lost.
+  It totals them per stage and lists leads whose end date (expected close) has passed.
+  Marking a lead won or lost does not close the project and creates nothing else; use
+  `set_project_status` for that.
+- **`create_project`** creates the project with ref `auto` and makes the API user project
+  leader, as the Dolibarr UI does (the REST API does not). The API user is read from
+  `/users/info`, falling back to `DOLIBARR_DEFAULT_COMMERCIAL_ID`. If that step fails, the
+  response carries a warning instead of failing, because a project visible only to
+  assigned contacts would be hidden from users who cannot see all projects. By default the
+  project is then validated (open).
+- **`set_project_status`**: `open` validates a draft or reopens a closed project
+  (`POST /projects/{id}/validate`, the same call the UI uses to reopen). Dolibarr has no close
+  endpoint, so `closed` sets `status: 2`, `date_close` and `fk_user_close` through
+  `PUT /projects/{id}`. That skips the `PROJECT_CLOSE` trigger.
+- **Tasks** are created through `POST /tasks`; Dolibarr's `POST /projects/{id}/tasks` route is
+  commented out. A task is billable when its project bills time. `update_task` with
+  `progress: 100` marks it done.
+- **`log_time`** finds the task by ref or ID, or by project plus task label. With only a
+  project it uses that project's single task, and returns `TASK_AMBIGUOUS` with the task list
+  when there are several. The entry starts at `start_time` (default 09:00) in
+  `DOLIBARR_TIMEZONE` and is sent to Dolibarr in GMT. Dolibarr returns no ID for the new
+  entry, so the response shows the task's spent hours before and after.
+- **`list_time_entries`** reads `GET /projects/alltimespent`. That endpoint's
+  `thirdparty_ids` parameter filters on a column tasks do not have, so the client filter goes
+  through `sqlfilters` on the project (`p.fk_soc`). It scans at most 1000 entries and warns
+  when it hits that limit.
+- **`get_project_detail`** lists the proposals, orders, client invoices and supplier invoices
+  that have `fk_projet` set to the project. Its totals count signed (accepted or billed)
+  proposals, and validated or paid invoices. A module the API user cannot read contributes
+  nothing instead of failing the call.
+
 ### Marking invoices paid
 
 `mark_invoice_paid` handles both client and supplier invoices. The invoice must already be
@@ -332,6 +391,7 @@ Tools are grouped by business domain under `src/tools/`:
 - `catalog`
 - `invoices`
 - `payments`
+- `projects`
 - `proposals`
 - `search`
 - `thirdparties`

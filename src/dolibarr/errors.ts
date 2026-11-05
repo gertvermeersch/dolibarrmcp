@@ -26,7 +26,7 @@ function getDolibarrErrorMessage(body: unknown): string | undefined {
 }
 
 function notFoundMessageForPath(path: string): string | undefined {
-  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties|products|contracts|interventions)\/(\d+)(?:\/|$|\?)/.exec(path);
+  const match = /^\/(invoices|supplierinvoices|proposals|thirdparties|products|contracts|interventions|projects|tasks)\/(\d+)(?:\/|$|\?)/.exec(path);
   if (!match) return undefined;
 
   const [, resource, id] = match;
@@ -38,6 +38,8 @@ function notFoundMessageForPath(path: string): string | undefined {
     products: "Product/service",
     contracts: "Contract",
     interventions: "Intervention",
+    projects: "Project",
+    tasks: "Task",
   };
 
   return `${entity[resource]} ${id} not found.`;
@@ -97,6 +99,12 @@ function moduleHintForPath(path: string): { name: string; action: string } | und
     return {
       name: "Interventions",
       action: "Enable the Dolibarr Interventions module and grant the API user intervention permissions required by this tool.",
+    };
+  }
+  if (path.startsWith("/projects") || path.startsWith("/tasks")) {
+    return {
+      name: "Projects",
+      action: "Enable the Dolibarr Projects module and grant the API user project read/write permissions required by this tool.",
     };
   }
   if (path.startsWith("/orders")) {

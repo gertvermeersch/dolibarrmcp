@@ -8,6 +8,11 @@ const knownCountriesById: Record<number, { code: string; name: string }> = {
 
 const defaultDolibarrDateTimezone = "Europe/Brussels";
 
+// The timezone Dolibarr dates are read and written in.
+export function dolibarrTimeZone(): string {
+  return process.env.DOLIBARR_TIMEZONE ?? process.env.TZ ?? defaultDolibarrDateTimezone;
+}
+
 export function numberOrUndefined(value: unknown): number | undefined {
   const number = Number(value);
   return Number.isFinite(number) ? number : undefined;
@@ -59,7 +64,7 @@ export function isoDateFromTimestamp(value: unknown): string | undefined {
   const date = new Date(milliseconds);
   if (Number.isNaN(date.getTime())) return undefined;
 
-  const timeZone = process.env.DOLIBARR_TIMEZONE ?? process.env.TZ ?? defaultDolibarrDateTimezone;
+  const timeZone = dolibarrTimeZone();
   try {
     const parts = new Intl.DateTimeFormat("en-GB", {
       timeZone,

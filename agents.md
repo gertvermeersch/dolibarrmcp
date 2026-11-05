@@ -31,16 +31,19 @@ src/
 │   ├── client.ts     Fetch wrapper — sets DOLAPIKEY header, normalises errors
 │   ├── documents/    Domain services for shared document workflows
 │   ├── maintenance/  Contract and intervention rules and services (see below)
+│   ├── projects/     Project, lead, task and time rules and services (see below)
 │   ├── thirdparties.ts
 │   ├── invoices.ts
 │   ├── supplierInvoices.ts
 │   ├── proposals.ts
 │   ├── contracts.ts
 │   ├── interventions.ts
+│   ├── projects.ts   Projects, tasks and time entries
 │   ├── users.ts
 │   └── products.ts
 ├── resolvers/
 │   ├── thirdparty.ts Fuzzy name → ID resolution with structured errors
+│   ├── project.ts    Project (ID / ref / title) and task (ID / ref / label in project) resolution
 │   └── product.ts    Catalog match → line item, with free-text fallback
 └── tools/
     ├── catalog/      Product and service catalog tools
@@ -48,6 +51,7 @@ src/
     ├── interventions/ Intervention tools
     ├── invoices/     Client/supplier invoice and receivables tools
     ├── payments/     Payment-mode and bank-account discovery tools
+    ├── projects/     Project, lead, task and time tracking tools
     ├── proposals/    Proposal/quote tools
     ├── search/       Cross-domain search tools
     ├── shared/       Shared schemas and response helpers for tool handlers
@@ -135,6 +139,55 @@ API facts verified against the demo (Dolibarr 24):
   go through `POST /interventions/{id}/lines`, then `/validate` and `/close` (status 3 = done).
 - `GET /thirdparties` returns 404 for no results (empty list). A non-admin API user gets 403 on
   `/setup/company` and `/setup/modules`; that is not a tool error.
+
+### Projects, leads, tasks and time
+
+`src/dolibarr/projects/` holds the domain layer for the project tools:
+
+- `projectRules.ts`: pure derivations (lead stage dictionary, weighted amount, pipeline
+  totals, planned vs. spent hours, local time → GMT). No I/O.
+- `projectReadService.ts`: sqlfilters for projects and time entries, and the
+  `get_project_detail` fan-out.
+- `projectWriteService.ts`: create/update/status for projects, create/update for tasks, and
+  logging time, with injectable dependencies for unit tests. Records already created are never
+  deleted.
+
+API facts verified against the demo (Dolibarr 24.0.0, non-admin API user) on 2026-11-05:
+
+- A lead is a project with `usage_opportunity = 1`. The stage is `opp_status` (an ID in
+  `llx_c_lead_status`) on read and on write; `fk_opp_status` is only the database column.
+  There is no REST endpoint for the dictionary. The IDs are the defaults 1 PROSP … 7 LOST,
+  with `PROJECT_USE_OPPORTUNITIES` enabled.
+- `POST /projects` and `POST /tasks` require `ref` (send `"auto"` for the next number) and
+  `title` / `label` + `fk_project`. `POST /projects/{id}/tasks` is commented out upstream.
+- The API does not add the creating user as `PROJECTLEADER`, unlike the UI. The tool adds
+  it with `POST /projects/{id}/contacts` (`fk_socpeople`, `type_contact`,
+  `source: "internal"`). Upstream that route is declared twice with the same arguments.
+- `GET /projects/{id}/tasks` only returns tasks the API user is assigned to; for a
+  non-admin API user that is usually none. List tasks with
+  `GET /tasks?sqlfilters=(t.fk_projet:=:id)` instead, which returns every task with
+  `planned_workload`, `duration_effective` and `progress`.
+- `opp_amount` and `budget_amount` come back as `null` when unset; treat that as "no amount",
+  not 0 (`optionalMoney` in `projectRules.ts`).
+- Reopening keeps `date_close` on the project; only report it while the status is closed.
+- `DELETE /projects/{id}` answers "Project deleted" even when the delete fails (it tests
+  `!delete()`, and -1 is truthy). A project with tasks or time stays. Delete time entries
+  (`DELETE /tasks/{id}/timespent/{tid}`) and tasks first, then check for a 404.
+- `PUT /projects/{id}` and `PUT /tasks/{id}` fetch the record and overwrite only the fields
+  sent, so partial bodies are safe (unlike document line PUTs).
+- Project status: 0 draft, 1 open, 2 closed. `POST /projects/{id}/validate` (send a body)
+  opens a draft and reopens a closed project. There is no close route; closing uses `PUT` with
+  `status: 2`, which skips the `PROJECT_CLOSE` trigger.
+- `POST /tasks/{id}/addtimespent` takes `date` as "YYYY-MM-DD HH:MM:SS" in GMT, `duration` in
+  seconds and `user_id` (0 = API user). It returns no ID. `duration_effective` on the task is
+  the total seconds spent. `alltimespent` returns `element_datehour` in the server's local
+  time (14:30 Brussels for an entry sent as 13:30 GMT).
+- `GET /projects/alltimespent` returns raw SQL rows (dates are DB strings). Its
+  `thirdparty_ids` filter uses `t.fk_soc` on the task table, which has no such column, so
+  filter with `sqlfilters` on `p.fk_soc`. Aliases: `p` project, `t` task, `et` time entry,
+  `s` thirdparty, `u` user.
+- Proposals, orders, invoices, supplier invoices and interventions link to a project through
+  `fk_projet` (filter `(t.fk_projet:=:id)`).
 
 ## Local Dolibarr source reference
 
@@ -228,6 +281,8 @@ through `mergeLineUpdate`.
 - `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview`, `list_interventions` (read; maintenance)
 - `create_contract`, `create_renewal_invoice`, `create_intervention`, `set_contract_status` (write; maintenance, nothing is deleted)
 - `list_payment_modes` and `list_bank_accounts` (read; payment option discovery)
+- `list_projects`, `get_project_detail`, `get_pipeline_overview`, `list_time_entries` (read; projects, leads and time)
+- `create_project`, `update_project`, `set_project_status`, `create_task`, `update_task`, `log_time` (write; projects, leads, tasks and time, nothing is deleted)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver
 - `dolibarr/client.ts` — fetch wrapper + error normalisation

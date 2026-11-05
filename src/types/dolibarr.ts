@@ -204,3 +204,68 @@ export interface DolibarrIntervention {
   dateo?: number;
   lines?: DolibarrInterventionLine[];
 }
+
+// A project. A lead is a project with usage_opportunity = 1 and an opportunity
+// stage (opp_status, an ID in llx_c_lead_status), amount and probability.
+export interface DolibarrProject {
+  id: number | string;
+  ref: string;
+  title?: string;
+  description?: string;
+  socid?: number | string | null;
+  status?: number | string; // 0 = draft, 1 = open (validated), 2 = closed
+  statut?: number | string;
+  public?: number | string;
+  date_start?: number | string;
+  date_end?: number | string;
+  date_close?: number | string;
+  budget_amount?: number | string | null;
+  usage_opportunity?: number | string;
+  usage_task?: number | string;
+  usage_bill_time?: number | string;
+  opp_status?: number | string | null;
+  opp_amount?: number | string | null;
+  opp_percent?: number | string | null;
+  note_public?: string;
+  note_private?: string;
+}
+
+// A project task. Durations are in seconds.
+export interface DolibarrTask {
+  id: number | string;
+  ref: string;
+  label?: string;
+  description?: string;
+  fk_project?: number | string;
+  fk_task_parent?: number | string;
+  date_start?: number | string;
+  date_end?: number | string;
+  planned_workload?: number | string | null;
+  duration_effective?: number | string | null;
+  progress?: number | string | null;
+  status?: number | string;
+  billable?: number | string;
+  rang?: number | string;
+}
+
+// A row of GET /projects/alltimespent: a raw SQL row, so dates are database
+// strings ("YYYY-MM-DD HH:MM:SS"), not timestamps.
+export interface DolibarrTimeSpentRow {
+  rowid: number | string;
+  element_duration: number | string; // seconds
+  element_datehour?: string;
+  fk_user?: number | string;
+  time_note?: string | null;
+  thm?: number | string | null;
+  user_login?: string;
+  user_firstname?: string | null;
+  user_lastname?: string | null;
+  project_id: number | string;
+  project_ref?: string;
+  project_title?: string;
+  task_id: number | string;
+  task_ref?: string;
+  task_label?: string;
+  soc_id?: number | string | null;
+  soc_name?: string | null;
+}

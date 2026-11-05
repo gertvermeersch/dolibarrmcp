@@ -6,6 +6,10 @@ export type McpErrorCode =
   | "INVOICE_NOT_FOUND"
   | "PROPOSAL_NOT_FOUND"
   | "CONTRACT_NOT_FOUND"
+  | "PROJECT_NOT_FOUND"
+  | "PROJECT_AMBIGUOUS"
+  | "TASK_NOT_FOUND"
+  | "TASK_AMBIGUOUS"
   | "SUPPLIER_INVOICE_NOT_FOUND"
   | "PRODUCT_NOT_FOUND"
   | "SERVICE_NOT_FOUND"
@@ -34,7 +38,15 @@ export interface McpError {
   error: McpErrorCode;
   message: string;
   action?: string;
-  candidates?: ThirdpartyCandidate[];
+  candidates?: ThirdpartyCandidate[] | RecordCandidate[];
+}
+
+// A project or task candidate returned with an *_AMBIGUOUS error.
+export interface RecordCandidate {
+  id: number;
+  ref: string;
+  label?: string;
+  client_name?: string;
 }
 
 export interface ThirdpartyCandidate {
