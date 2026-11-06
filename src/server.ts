@@ -42,6 +42,8 @@ import { registerUpdateProposal } from "./tools/proposals/updateProposal.js";
 import { registerValidateProposal } from "./tools/proposals/validateProposal.js";
 import { registerCreateProject } from "./tools/projects/createProject.js";
 import { registerCreateTask } from "./tools/projects/createTask.js";
+import { registerDeleteTask } from "./tools/projects/deleteTask.js";
+import { registerDeleteTimeEntry } from "./tools/projects/deleteTimeEntry.js";
 import { registerGetPipelineOverview } from "./tools/projects/getPipelineOverview.js";
 import { registerGetProjectDetail } from "./tools/projects/getProjectDetail.js";
 import { registerListProjects } from "./tools/projects/listProjects.js";
@@ -50,6 +52,7 @@ import { registerLogTime } from "./tools/projects/logTime.js";
 import { registerSetProjectStatus } from "./tools/projects/setProjectStatus.js";
 import { registerUpdateProject } from "./tools/projects/updateProject.js";
 import { registerUpdateTask } from "./tools/projects/updateTask.js";
+import { registerUpdateTimeEntry } from "./tools/projects/updateTimeEntry.js";
 import { registerSearchAcross } from "./tools/search/searchAcross.js";
 import { registerSearchDocumentContent } from "./tools/search/searchDocumentContent.js";
 import { registerCreateThirdparty } from "./tools/thirdparties/createThirdparty.js";
@@ -116,7 +119,10 @@ export function registerTools(server: McpServer): void {
   registerSetProjectStatus(server);
   registerCreateTask(server);
   registerUpdateTask(server);
+  registerDeleteTask(server);
   registerLogTime(server);
+  registerUpdateTimeEntry(server);
+  registerDeleteTimeEntry(server);
 
   registerSearchAcross(server);
   registerSearchDocumentContent(server);

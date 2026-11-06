@@ -151,6 +151,10 @@ API facts verified against the demo (Dolibarr 24):
 - `projectWriteService.ts`: create/update/status for projects, create/update for tasks, and
   logging time, with injectable dependencies for unit tests. Records already created are never
   deleted.
+- `timeEntryService.ts`: find a time entry by ID, correct it (resending unchanged fields) or
+  delete it; invoiced time is refused.
+- `taskDeleteService.ts`: guarded task delete (subtasks refused, time deleted only on request,
+  never invoiced time, gone-check afterwards).
 
 API facts verified against the demo (Dolibarr 24.0.0, non-admin API user) on 2026-11-05:
 
@@ -173,6 +177,15 @@ API facts verified against the demo (Dolibarr 24.0.0, non-admin API user) on 202
 - `DELETE /projects/{id}` answers "Project deleted" even when the delete fails (it tests
   `!delete()`, and -1 is truthy). A project with tasks or time stays. Delete time entries
   (`DELETE /tasks/{id}/timespent/{tid}`) and tasks first, then check for a 404.
+- `PUT /tasks/{id}/timespent/{tid}` overwrites date, duration, product and note with what is
+  sent (missing ones become empty), so `update_time_entry` resends the current values;
+  `user_id` 0 keeps the user. `GET /tasks/{id}/getTimeSpent/{tid}` returns the note in
+  `note_private` (`note` is null), timestamps for the dates, and `invoice_id`. It does not
+  check that the entry belongs to the task in the URL, so take the task from `fk_element`
+  or from `alltimespent` filtered on `(et.rowid:=:id)`.
+- `DELETE /tasks/{id}` refuses (500) a task with subtasks or with time entries
+  (`element_time` is a child table of tasks). `DELETE /tasks/{id}/timespent/{tid}` also
+  lowers the task's `duration_effective`.
 - `PUT /projects/{id}` and `PUT /tasks/{id}` fetch the record and overwrite only the fields
   sent, so partial bodies are safe (unlike document line PUTs).
 - Project status: 0 draft, 1 open, 2 closed. `POST /projects/{id}/validate` (send a body)
@@ -282,7 +295,8 @@ through `mergeLineUpdate`.
 - `create_contract`, `create_renewal_invoice`, `create_intervention`, `set_contract_status` (write; maintenance, nothing is deleted)
 - `list_payment_modes` and `list_bank_accounts` (read; payment option discovery)
 - `list_projects`, `get_project_detail`, `get_pipeline_overview`, `list_time_entries` (read; projects, leads and time)
-- `create_project`, `update_project`, `set_project_status`, `create_task`, `update_task`, `log_time` (write; projects, leads, tasks and time, nothing is deleted)
+- `create_project`, `update_project`, `set_project_status`, `create_task`, `update_task`, `log_time`, `update_time_entry` (write; projects, leads, tasks and time)
+- `delete_time_entry`, `delete_task` (guarded deletes: `MCP_ALLOW_DELETES=true` and `confirm: true`)
 - `resolveThirdparty` resolver
 - `resolveLine` resolver
 - `dolibarr/client.ts` — fetch wrapper + error normalisation

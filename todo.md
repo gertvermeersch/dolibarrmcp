@@ -280,6 +280,7 @@ Implemented 2026-11-05 and run end to end against the demo (Dolibarr 24.0.0) the
   - [ ] Check that entry once in the Dolibarr UI (time spent tab).
   - [x] `GET /projects/alltimespent` accepts `sortfield=et.element_datehour` and `sqlfilters` on `p.rowid`, `p.fk_soc`, `t.rowid`, `et.fk_user`, `et.element_date`.
   - [x] `(t.fk_projet:=:id)` filters proposals, orders, invoices and supplier invoices.
+- [x] Phase 2 (2026-11-06): `update_time_entry`, `delete_time_entry`, `delete_task`, run end to end on the demo.
 - [ ] Integration tests for the project tools in `test/integration/dolibarr-api.test.ts`.
 - [ ] Optional `project` input on `create_proposal`, `create_invoice` and `create_intervention`, so quotes for a lead and invoices for a job are linked (`fk_project`).
 - [ ] Optional lead-stage override (env) if the `llx_c_lead_status` dictionary is ever customised.

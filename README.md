@@ -159,6 +159,9 @@ Write tools:
 - `create_task`
 - `update_task`
 - `log_time`
+- `update_time_entry`
+- `delete_time_entry` (guarded)
+- `delete_task` (guarded)
 
 See `todo.md` for the current implementation and verification checklist.
 
@@ -174,8 +177,8 @@ See `todo.md` for the current implementation and verification checklist.
 | Contracts | `create_contract` | `list_contracts`, `list_contracts_by_expiry`, `get_contract_detail`, `get_maintenance_overview` | — | `set_contract_status` | — |
 | Interventions | `create_intervention` | `list_interventions` | — | — | — |
 | Projects / leads | `create_project` | `list_projects`, `get_project_detail`, `get_pipeline_overview` | `update_project` | `set_project_status` | — |
-| Tasks | `create_task` | `get_project_detail` | `update_task` | — | — |
-| Time entries | `log_time` | `list_time_entries`, `get_project_detail` | — | — | — |
+| Tasks | `create_task` | `get_project_detail` | `update_task` | — | guarded `delete_task` |
+| Time entries | `log_time` | `list_time_entries`, `get_project_detail` | `update_time_entry` | — | guarded `delete_time_entry` |
 
 Guarded delete tools require `MCP_ALLOW_DELETES=true` and `confirm: true`.
 
@@ -357,6 +360,20 @@ handle both kinds of project, and every project belongs to an existing thirdpart
   `thirdparty_ids` parameter filters on a column tasks do not have, so the client filter goes
   through `sqlfilters` on the project (`p.fk_soc`). It scans at most 1000 entries and warns
   when it hits that limit.
+- **`update_time_entry`** corrects one entry by its ID (shown by `list_time_entries`):
+  hours, date, start time, note or user. Dolibarr overwrites every field of the entry from
+  the request, so the tool resends the current value of each field you leave out. Moving the
+  date keeps the start time. Time that is already on an invoice is refused
+  (`TIME_ENTRY_INVOICED`).
+- **`delete_time_entry`** deletes one entry. Without `confirm: true` it is a dry run that
+  shows the entry. Invoiced time is refused. After deleting, the tool checks that the entry
+  is really gone.
+- **`delete_task`** is refused for a task with subtasks (`TASK_HAS_SUBTASKS`). Dolibarr also
+  refuses a task with time logged, so the tool returns `TASK_HAS_TIME` unless you pass
+  `delete_time_entries: true`. It then deletes those entries first, but checks all of them
+  before deleting anything: one invoiced entry stops the whole delete. The dry run shows
+  the number of subtasks, time entries and hours. Both delete tools need
+  `MCP_ALLOW_DELETES=true`, like the other guarded deletes.
 - **`get_project_detail`** lists the proposals, orders, client invoices and supplier invoices
   that have `fk_projet` set to the project. Its totals count signed (accepted or billed)
   proposals, and validated or paid invoices. A module the API user cannot read contributes

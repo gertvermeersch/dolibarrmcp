@@ -1,8 +1,8 @@
-import { dolibarr } from "./client.js";
+import { dolibarr, type DolibarrRequestOptions } from "./client.js";
 import { isDolibarrNotFoundError } from "./errors.js";
 import { listAllPages } from "./pagination.js";
 import { dolibarrQueryString } from "./sqlFilters.js";
-import type { DolibarrProject, DolibarrTask, DolibarrTimeSpentRow } from "../types/dolibarr.js";
+import type { DolibarrProject, DolibarrTask, DolibarrTimeSpentEntry, DolibarrTimeSpentRow } from "../types/dolibarr.js";
 
 // Projects and tasks. A lead is a project with the opportunity fields set; see
 // dolibarr/projects/projectRules.ts for the stage dictionary.
@@ -98,8 +98,8 @@ export async function listProjectTasks(projectId: number): Promise<DolibarrTask[
   );
 }
 
-export async function getTask(id: number): Promise<DolibarrTask> {
-  return dolibarr.get<DolibarrTask>(`/tasks/${id}`);
+export async function getTask(id: number, options?: DolibarrRequestOptions): Promise<DolibarrTask> {
+  return dolibarr.get<DolibarrTask>(`/tasks/${id}`, options);
 }
 
 export async function listTasks(params: string): Promise<DolibarrTask[]> {
@@ -127,6 +127,11 @@ export async function createTask(data: {
   return dolibarr.post<number>("/tasks", data);
 }
 
+// Dolibarr refuses (500) a task with subtasks or time entries.
+export async function deleteTask(id: number): Promise<void> {
+  await dolibarr.delete(`/tasks/${id}`);
+}
+
 // PUT fetches the task and overwrites only the fields sent.
 export async function updateTask(id: number, fields: Record<string, unknown>): Promise<DolibarrTask> {
   return dolibarr.put<DolibarrTask>(`/tasks/${id}`, fields);
@@ -139,6 +144,32 @@ export async function addTimeSpent(
   data: { date: string; duration: number; user_id?: number; note?: string; progress?: number },
 ): Promise<void> {
   await dolibarr.post(`/tasks/${taskId}/addtimespent`, data);
+}
+
+// One time entry. Dolibarr does not check that it belongs to `taskId`, so
+// callers take the task from the entry's fk_element.
+export async function getTimeSpentEntry(
+  taskId: number,
+  entryId: number,
+  options?: DolibarrRequestOptions,
+): Promise<DolibarrTimeSpentEntry> {
+  return dolibarr.get<DolibarrTimeSpentEntry>(`/tasks/${taskId}/getTimeSpent/${entryId}`, options);
+}
+
+// Overwrites date, duration, product and note with what is sent, so callers
+// send the current value of every field they do not change. A user_id of 0
+// keeps the current user. `date` is "YYYY-MM-DD HH:MM:SS" in GMT.
+export async function updateTimeSpent(
+  taskId: number,
+  entryId: number,
+  data: { date: string; duration: number; user_id: number; note: string; product_id?: number | null },
+): Promise<void> {
+  await dolibarr.put(`/tasks/${taskId}/timespent/${entryId}`, data);
+}
+
+// Also subtracts the duration from the task's duration_effective.
+export async function deleteTimeSpent(taskId: number, entryId: number): Promise<void> {
+  await dolibarr.delete(`/tasks/${taskId}/timespent/${entryId}`);
 }
 
 export async function listTimeSpent(params: string): Promise<DolibarrTimeSpentRow[]> {

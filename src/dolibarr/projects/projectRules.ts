@@ -162,6 +162,14 @@ export function isoDateFromDbDateTime(value: unknown): string | undefined {
   return match?.[1];
 }
 
+// Local HH:MM of a Unix timestamp in `timeZone`.
+export function localTimeFromTimestamp(value: unknown, timeZone: string): string | undefined {
+  const seconds = numberOrUndefined(value);
+  if (seconds === undefined || seconds <= 0) return undefined;
+  return new Intl.DateTimeFormat("en-GB", { timeZone, hourCycle: "h23", hour: "2-digit", minute: "2-digit" })
+    .format(new Date(seconds * 1000));
+}
+
 export function isTimeOfDay(value: string): boolean {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
   return Boolean(match && Number(match[1]) < 24 && Number(match[2]) < 60);

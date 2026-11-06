@@ -269,3 +269,20 @@ export interface DolibarrTimeSpentRow {
   soc_id?: number | string | null;
   soc_name?: string | null;
 }
+
+// One time entry from GET /tasks/{id}/getTimeSpent/{tid}. Dates are
+// timestamps; the note comes back in note_private.
+export interface DolibarrTimeSpentEntry {
+  id: number | string;
+  fk_element: number | string; // task ID
+  element_date?: number | string;
+  element_datehour?: number | string;
+  element_date_withhour?: number | string;
+  element_duration?: number | string; // seconds
+  fk_user?: number | string | null;
+  fk_product?: number | string | null;
+  note?: string | null;
+  note_private?: string | null;
+  invoice_id?: number | string | null;
+  invoice_line_id?: number | string | null;
+}
