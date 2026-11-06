@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getInvoice, listInvoices } from "../../dolibarr/invoices.js";
 import { getThirdparty } from "../../dolibarr/thirdparties.js";
-import { invoiceStatusLabel } from "../../dolibarr/statusLabels.js";
+import { invoiceStatusLabel, invoiceTypeLabel } from "../../dolibarr/statusLabels.js";
 import { registerJsonTool } from "../shared/registerJsonTool.js";
 import { resolveByIdOrRef } from "../shared/resolveByIdOrRef.js";
 import {
@@ -13,6 +13,7 @@ import {
   numberOrUndefined,
   remainingToPay,
 } from "../shared/normalization.js";
+import { linkedObjectIds } from "../../dolibarr/maintenance/contractRules.js";
 import { serializeLineItem, serializeThirdpartyIdentity } from "../shared/serializers.js";
 import type { DolibarrInvoice } from "../../types/dolibarr.js";
 
@@ -46,6 +47,7 @@ export function registerGetInvoiceDetail(server: McpServer): void {
       return {
         id: dolibarrId(invoice.id),
         ref: invoice.ref,
+        type: invoiceTypeLabel(invoice.type),
         status: invoiceStatusLabel(invoice.statut),
         paid,
         payment: {
@@ -63,6 +65,7 @@ export function registerGetInvoiceDetail(server: McpServer): void {
           total_including_tax: money(invoice.total_ttc),
         },
         client: serializeThirdpartyIdentity(client),
+        linked_proposal_ids: linkedObjectIds(invoice.linkedObjectsIds, "propal"),
         lines: (invoice.lines ?? []).map(serializeLineItem),
       };
     },

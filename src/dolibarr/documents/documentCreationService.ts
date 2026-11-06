@@ -13,8 +13,21 @@ export interface DocumentCreationInput {
   /** Optional YYYY-MM-DD due date; without it Dolibarr derives one from the payment terms. */
   dueDate?: string;
   refSupplier?: string;
+  /** Dolibarr invoice type code, such as 3 for a deposit invoice. Omitted means standard. */
+  type?: number;
+  /** Existing document to link on creation, such as the proposal a deposit invoice bills. */
+  origin?: DocumentOrigin;
   lines: LineItemInput[];
   validate: boolean;
+}
+
+export interface DocumentOrigin {
+  /** Dolibarr element name, such as "propal". */
+  element: string;
+  id: number;
+  ref: string;
+  /** Thirdparty the origin belongs to; must match the document's thirdparty. */
+  socid: number;
 }
 
 export interface DocumentCreationSuccess {
@@ -41,6 +54,8 @@ interface DocumentApi {
     date: number;
     date_lim_reglement?: number;
     ref_supplier?: string;
+    type?: number;
+    linked_objects?: Record<string, number>;
     lines?: Partial<DolibarrInvoiceLine>[];
   }): Promise<number>;
   addLine(id: number, line: Partial<DolibarrInvoiceLine>): Promise<number>;
@@ -99,11 +114,21 @@ export class DocumentCreationService {
       }
     }
 
+    if (input.origin && input.origin.socid !== resolvedThirdparty.id) {
+      return {
+        error: "VALIDATION_ERROR",
+        message: `${input.origin.ref} belongs to another client than '${resolvedThirdparty.name}'.`,
+        action: "Use the client of the linked document, or link a different document.",
+      };
+    }
+
     const id = await this.api.create({
       socid: resolvedThirdparty.id,
       date: unixTimestampFromIsoDate(input.date),
       ...(input.dueDate ? { date_lim_reglement: unixTimestampFromIsoDate(input.dueDate) } : {}),
       ...(input.refSupplier ? { ref_supplier: input.refSupplier } : {}),
+      ...(input.type !== undefined ? { type: input.type } : {}),
+      ...(input.origin ? { linked_objects: { [input.origin.element]: input.origin.id } } : {}),
     });
 
     for (const resolvedLine of resolvedLines) {

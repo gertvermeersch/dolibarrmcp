@@ -282,6 +282,7 @@ through `mergeLineUpdate`.
 - `create_thirdparty` (write)
 - `update_thirdparty` (write)
 - `create_invoice` (write)
+- `create_credit_note` (write; credits an existing invoice, never deletes)
 - `update_invoice` (write; draft only)
 - `create_supplier_invoice` (write)
 - `update_supplier_invoice` (write; draft only)

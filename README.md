@@ -138,6 +138,7 @@ Write tools:
 - `create_thirdparty`
 - `update_thirdparty`
 - `create_invoice`
+- `create_credit_note`
 - `update_invoice`
 - `create_supplier_invoice`
 - `update_supplier_invoice`
@@ -170,7 +171,7 @@ See `todo.md` for the current implementation and verification checklist.
 | Entity | Create | Read | Update | Lifecycle / status | Delete |
 | --- | --- | --- | --- | --- | --- |
 | Thirdparties | `create_thirdparty` | `search_thirdparties`, `get_client_overview` | `update_thirdparty` | — | guarded `delete_thirdparty` |
-| Client invoices | `create_invoice` | `list_invoices`, `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
+| Client invoices | `create_invoice`, `create_credit_note` | `list_invoices`, `get_invoice_detail` | `update_invoice` (draft only) | `validate_invoice`, `set_invoice_status`, `mark_invoice_paid` | guarded `delete_invoice` |
 | Supplier invoices | `create_supplier_invoice` | `get_supplier_invoice_detail` | `update_supplier_invoice` (draft only) | `set_supplier_invoice_status`, `mark_invoice_paid` | guarded `delete_supplier_invoice` |
 | Proposals | `create_proposal` | `list_proposals`, `get_proposal_detail` | `update_proposal` (draft only) | `validate_proposal`, `set_proposal_status` | guarded `delete_proposal` |
 | Products / services | — | `list_products`, `search_products`, `search_services` | `update_product`, `update_service` | — | — |
@@ -255,6 +256,21 @@ moves with it. Pass `valid_until` to set the end date explicitly.
 the invoice date. Without it, `create_invoice` lets Dolibarr derive the due date from the
 payment terms. When `update_invoice` changes only the date, it recomputes the due date from
 the payment terms, as the Dolibarr UI does. The REST API alone would keep the old due date.
+
+`create_invoice` takes `type` (`standard`, the default, or `deposit` for a voorschotfactuur /
+facture d'acompte) and an optional `proposal` (ref or ID). The proposal must belong to the same
+client. The invoice is linked to it on creation, and the response's `linked_to_proposal` confirms
+that Dolibarr stored the link. `get_invoice_detail` returns the invoice `type` and
+`linked_proposal_ids`. Deducting a deposit from the final invoice is not supported yet.
+
+`create_credit_note` credits a validated or paid client invoice and takes the client from it.
+`mode: "full"` copies every invoice line; `mode: "partial"` takes the lines to credit as
+positive quantities and prices, because Dolibarr makes the amounts negative itself. It refuses
+to credit more than the invoice total minus earlier credit notes (`CREDIT_EXCEEDS_INVOICE`), and
+`full` is refused once a credit note exists. `reason` is stored as a private note. The response
+reports whether the invoice is paid and what remains to pay, and `linked_to_invoice` confirms
+that Dolibarr stored the link. The tool does not refund the money or apply the credit to the
+invoice; do that in Dolibarr.
 
 ### Updating products and services
 

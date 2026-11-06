@@ -45,7 +45,10 @@ export interface DolibarrInvoice {
   total_ttc: number;
   total_tva: number;
   statut: number; // 0=draft, 1=validated, 2=paid, 3=abandoned
+  type?: number | string; // 0=standard, 1=replacement, 2=credit note, 3=deposit, 5=situation
+  fk_facture_source?: number | string; // Invoice a credit note or replacement invoice refers to
   lines?: DolibarrInvoiceLine[];
+  linkedObjectsIds?: DolibarrLinkedObjectIds; // Present on GET /invoices/{id}
 }
 
 export interface DolibarrInvoiceLine {
@@ -110,6 +113,7 @@ export interface DolibarrProposal {
   total_ttc: number;
   statut: number; // 0=draft, 1=validated, 2=signed, 3=refused, 4=billed
   lines?: DolibarrInvoiceLine[];
+  linkedObjectsIds?: DolibarrLinkedObjectIds; // Present on GET /proposals/{id}
 }
 
 export interface DolibarrOrder {

@@ -16,6 +16,7 @@ import { registerGetContractDetail } from "./tools/contracts/getContractDetail.j
 import { registerGetMaintenanceOverview } from "./tools/contracts/getMaintenanceOverview.js";
 import { registerListContractsByExpiry } from "./tools/contracts/listContractsByExpiry.js";
 import { registerSetContractStatus } from "./tools/contracts/setContractStatus.js";
+import { registerCreateCreditNote } from "./tools/invoices/createCreditNote.js";
 import { registerCreateInvoice } from "./tools/invoices/createInvoice.js";
 import { registerCreateSupplierInvoice } from "./tools/invoices/createSupplierInvoice.js";
 import { registerDeleteInvoice } from "./tools/invoices/deleteInvoice.js";
@@ -76,6 +77,7 @@ export function registerTools(server: McpServer): void {
   registerUpdateService(server);
 
   registerCreateInvoice(server);
+  registerCreateCreditNote(server);
   registerCreateSupplierInvoice(server);
   registerUpdateInvoice(server);
   registerUpdateSupplierInvoice(server);

@@ -5,6 +5,18 @@ const invoiceStatusLabels: Record<number, string> = {
   3: "abandoned",
 };
 
+// Dolibarr Facture::TYPE_* constants. Standard and deposit invoices are created by create_invoice, credit notes by create_credit_note.
+export const INVOICE_TYPE_CODES = { standard: 0, deposit: 3 } as const;
+export const CREDIT_NOTE_TYPE_CODE = 2;
+
+const invoiceTypeLabels: Record<number, string> = {
+  0: "standard",
+  1: "replacement",
+  2: "credit_note",
+  3: "deposit",
+  5: "situation",
+};
+
 const proposalStatusLabels: Record<number, string> = {
   0: "draft",
   1: "validated",
@@ -54,6 +66,10 @@ function statusLabel(labels: Record<number, string>, value: unknown): string | u
 
 export function invoiceStatusLabel(value: unknown): string | undefined {
   return statusLabel(invoiceStatusLabels, value);
+}
+
+export function invoiceTypeLabel(value: unknown): string | undefined {
+  return statusLabel(invoiceTypeLabels, value);
 }
 
 export function proposalStatusLabel(value: unknown): string | undefined {

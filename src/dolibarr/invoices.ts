@@ -18,9 +18,14 @@ export async function listInvoices(params: string): Promise<DolibarrInvoice[]> {
 export async function createInvoice(data: {
   socid: number;
   date: number;
+  // Facture::TYPE_*: 0 = standard, 2 = credit note, 3 = deposit (voorschotfactuur). Omitted means standard.
+  type?: number;
+  // Credit notes (type 2) point at the invoice they correct.
+  fk_facture_source?: number;
+  note_private?: string;
   // Forces the due date; Dolibarr otherwise derives it from the payment terms.
   date_lim_reglement?: number;
-  // Links the new invoice to other objects, such as `{ contrat: 12 }`. Only this
+  // Links the new invoice to other objects, such as `{ contrat: 12 }` or `{ propal: 5 }`. Only this
   // field links on creation; `origin` and `origin_type` are ignored by the API.
   linked_objects?: Record<string, number>;
   lines?: Partial<DolibarrInvoiceLine>[];
