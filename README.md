@@ -458,3 +458,9 @@ known module endpoint, the server returns:
 
 Because Dolibarr uses the same 403 shape for inactive modules and missing permissions, check
 both when debugging access failures.
+
+## License
+
+Copyright (c) 2026 Gert Vermeersch.
+
+This project is licensed under the [MIT License](LICENSE).

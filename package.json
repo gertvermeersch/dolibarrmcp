@@ -2,6 +2,7 @@
   "name": "dolibarr-mcp",
   "version": "0.1.0",
   "description": "MCP server for Dolibarr ERP/CRM",
+  "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
