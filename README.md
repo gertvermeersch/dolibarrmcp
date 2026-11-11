@@ -1,7 +1,6 @@
 # Dolibarr MCP
 
-This project is a TypeScript MCP server that exposes task-oriented Dolibarr ERP/CRM tools.
-It connects to Dolibarr through the REST API and serves MCP over HTTP.
+Most MCP servers for business software are thin 1:1 wrappers around a REST API, which leaves the model to chain calls, look up IDs, and work out the business logic itself. This server takes the opposite approach. Each tool performs a complete business operation: creating and validating a quote, recording a payment, logging time on a project task, or producing an aged receivables overview. It accepts fuzzy inputs like client names instead of numeric IDs, resolves foreign keys server-side, and returns denormalized, human-readable data. It runs as a Docker sidecar next to your Dolibarr instance, speaks Streamable HTTP, and keeps your data on your own infrastructure. Destructive operations are off by default and are enabled with MCP_ALLOW_DELETES=true. Built and used in production by [Stormlabs](https://stormlabs.be).
 
 ## Setup
 
